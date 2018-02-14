@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 
   DMatrix Q(6, 6);
   Q(0,0) = 0.01; Q(1,1) = 0.01; Q(2,2) = 0.01;
-  Q(3,3) = 1.0; Q(4,4) = 1.0; Q(5,5) = 1.0;
+  Q(3,3) = 1.0; Q(4,4) = 0.01; Q(5,5) = 0.01;
 
   Function eta;
   eta << x4 << y4 << z4 << ga2 << qd1 << qd2;
@@ -69,6 +69,8 @@ int main(int argc, char** argv) {
   ocp.subjectTo(f); // Dynamics
 
   ocp.subjectTo(-1.57 <= q1 <= 0.0); // joint limits
+  ocp.subjectTo(-1.57 <= q2 <= 1.57); // joint limits
+  ocp.subjectTo(-1.57 <= ga0 <= 1.57); // joint limits
 
   ocp.subjectTo(-0.78 <= qd1 <= 0.78); // joint velocity limits
   ocp.subjectTo(-0.78 <= qd2 <= 0.78);
@@ -77,6 +79,9 @@ int main(int argc, char** argv) {
   ocp.subjectTo(-1.0 <= y1 <= 1.0);
   ocp.subjectTo(-1.0 <= z1 <= 1.0);
   ocp.subjectTo(-1.0 <= ga1 <= 1.0);
+
+  ocp.subjectTo(AT_START, q1 == -1.56);
+  ocp.subjectTo(AT_START, q2 == 1.56);
 
   ocp.subjectTo(AT_END, x1 == 0.0);
   ocp.subjectTo(AT_END, y1 == 0.0);
@@ -90,9 +95,9 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, (l1*sin(q1) + l2*sin(q1 + q2)) <= -0.05);
   
 
-  double obs[5] = {2.0, 2.5, 3.0};
-  double ora = 0.3;
-  for(int ii = 0; ii < 3; ii++) {
+  double obs[] = {2.0, 2.5};
+  double ora = 0.5;
+  for(int ii = 0; ii < 2; ii++) {
     ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1 + q2))*cos(ga0))-obs[ii])*((x0 + (l1*cos(q1) + l2*cos(q1 + q2))*cos(ga0))-obs[ii])
                    +((y0 + (l1*cos(q1) + l2*cos(q1 + q2))*sin(ga0))-obs[ii]-0.2)*((y0 + (l1*cos(q1) + l2*cos(q1 + q2))*sin(ga0))-obs[ii]-0.2)
                    +((z0 + l1*sin(q1) + l2*sin(q1 + q2))-obs[ii]-0.2)*((z0 + l1*sin(q1) + l2*sin(q1 + q2))-obs[ii]-0.2)) >= ora*ora);

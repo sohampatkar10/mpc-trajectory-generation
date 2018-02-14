@@ -43,8 +43,8 @@ int main(int argc, char** argv) {
     acadoVariables.x[i*NX + 1] = gy/((double) N)*i;
     acadoVariables.x[i*NX + 2] = gz/((double) N)*i;
     acadoVariables.x[i*NX + 12] = 0.0;
-    acadoVariables.x[i*NX + 14] = 1.57;
-    acadoVariables.x[i*NX + 15] = -1.57;
+    acadoVariables.x[i*NX + 14] = -1.56;
+    acadoVariables.x[i*NX + 15] = 1.56;
 
     // acadoVariables.x[i*NX] = 0.0;
     // acadoVariables.x[i*NX + 1] = 0.0;
@@ -119,8 +119,8 @@ int main(int argc, char** argv) {
     obs_marker[o].type = visualization_msgs::Marker::SPHERE;
     obs_marker[o].action = visualization_msgs::Marker::ADD;
     obs_marker[o].pose.position.x = obs[o];
-    obs_marker[o].pose.position.y = obs[o];
-    obs_marker[o].pose.position.z = obs[o];
+    obs_marker[o].pose.position.y = obs[o] + 0.2;
+    obs_marker[o].pose.position.z = obs[o] + 0.2;
     obs_marker[o].pose.orientation.x = 0.0;
     obs_marker[o].pose.orientation.y = 0.0;
     obs_marker[o].pose.orientation.z = 0.0;
@@ -153,6 +153,8 @@ int main(int argc, char** argv) {
     ROS_INFO("ee : %f %f %f", x + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga),
       y + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga),
       z + l1*sin(q1) + l2*sin(q1+q2));
+
+    ROS_INFO("joints: %f %f", q1, q2);
 
     sensor_msgs::JointState joint_state;
     joint_state.name.push_back("airbasetolink1");

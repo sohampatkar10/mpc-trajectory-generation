@@ -66,7 +66,7 @@ extern "C"
 /** Number of online data values. */
 #define ACADO_NOD 0
 /** Number of path constraints. */
-#define ACADO_NPAC 6
+#define ACADO_NPAC 4
 /** Number of control variables. */
 #define ACADO_NU 6
 /** Number of differential variables. */
@@ -177,26 +177,26 @@ real_t objValueIn[ 22 ];
 /** Row vector of size: 6 */
 real_t objValueOut[ 6 ];
 
-/** Column vector of size: 486 */
-real_t conAuxVar[ 486 ];
+/** Column vector of size: 324 */
+real_t conAuxVar[ 324 ];
 
 /** Row vector of size: 22 */
 real_t conValueIn[ 22 ];
 
-/** Row vector of size: 138 */
-real_t conValueOut[ 138 ];
+/** Row vector of size: 92 */
+real_t conValueOut[ 92 ];
 
-/** Column vector of size: 300 */
-real_t evH[ 300 ];
+/** Column vector of size: 200 */
+real_t evH[ 200 ];
 
-/** Matrix of size: 300 x 16 (row major format) */
-real_t evHx[ 4800 ];
+/** Matrix of size: 200 x 16 (row major format) */
+real_t evHx[ 3200 ];
 
-/** Matrix of size: 300 x 6 (row major format) */
-real_t evHu[ 1800 ];
+/** Matrix of size: 200 x 6 (row major format) */
+real_t evHu[ 1200 ];
 
-/** Column vector of size: 6 */
-real_t evHxd[ 6 ];
+/** Column vector of size: 4 */
+real_t evHxd[ 4 ];
 
 /** Column vector of size: 4 */
 real_t pocEvH[ 4 ];
@@ -231,14 +231,14 @@ real_t QDy[ 816 ];
 /** Matrix of size: 300 x 16 (row major format) */
 real_t H10[ 4800 ];
 
-/** Matrix of size: 300 x 16 (row major format) */
-real_t A01[ 4800 ];
+/** Matrix of size: 200 x 16 (row major format) */
+real_t A01[ 3200 ];
 
 /** Matrix of size: 4 x 16 (row major format) */
 real_t A02[ 64 ];
 
-/** Column vector of size: 300 */
-real_t pacA01Dx0[ 300 ];
+/** Column vector of size: 200 */
+real_t pacA01Dx0[ 200 ];
 
 /** Column vector of size: 4 */
 real_t pacA02Dx0[ 4 ];
