@@ -1,0 +1,6 @@
+<launch>
+  <param name="wFile" type="string" value="$(find opam)/config/W.txt"/>
+  <param name="qFile" type="string" value="$(find opam)/config/Q2.txt"/>
+  <rosparam command="load" file="$(find opam)/config/params.yaml"/>
+  <node type="quad_code_gen" pkg="opam" name="quad_code_gen" output="screen"/>
+</launch>

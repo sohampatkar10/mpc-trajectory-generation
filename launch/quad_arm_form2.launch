@@ -1,0 +1,14 @@
+<launch>
+  <param name="states_file" type="string" value="$(find opam)/data/states2.txt"/>
+  <param name="robot_description" textfile="$(find opam)/urdf/airbot5.urdf"/>
+  <param name="controls_file" type="string" value="$(find opam)/data/controls2.txt"/>
+  <param name="wFile" type="string" value="$(find opam)/config/W.txt"/>
+  <param name="qFile" type="string" value="$(find opam)/config/Q2.txt"/>
+
+  <rosparam command="load" file="$(find opam)/config/params2.yaml"/>
+
+  <node type="quad_arm" pkg="opam" name="quad_arm" output="screen"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find urdf_tutorial)/urdf.rviz" required="true" />
+</launch>
