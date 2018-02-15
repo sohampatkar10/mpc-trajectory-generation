@@ -5,6 +5,8 @@
 #include <visualization_msgs/Marker.h>
 #include <nav_msgs/Odometry.h>
 
+#include <fstream>
+
 #include "acado_common.h"
 #include "acado_auxiliary_functions.h"
 
@@ -31,6 +33,12 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh;
   int    i, iter;
   acado_timer t;
+
+  std::string states_file; nh.getParam("states_file", states_file);
+  std::string controls_file; nh.getParam("controls_file", controls_file);
+
+  std::ofstream states(states_file);
+  std::ofstream controls(controls_file);
 
   /* Initialize the solver. */
   acado_initializeSolver();
@@ -146,6 +154,12 @@ int main(int argc, char** argv) {
     q2 = acadoVariables.x[NX*tt + 15];
     double l1 = 0.175; double l2 = 0.42;
 
+    for(int s=0; s < NX; s++) states << acadoVariables.x[NX*tt + s] <<" ";
+    states <<"\n";
+
+    for(int u=0; u < NU; u++) controls << acadoVariables.u[NU*tt + u] <<" ";
+    controls <<"\n";
+
     ROS_INFO("ee : %f %f %f", x + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga),
       y + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga),
       z + l1*sin(q1) + l2*sin(q1+q2));
@@ -186,7 +200,7 @@ int main(int argc, char** argv) {
       obs_marker[o].header.stamp = ros::Time::now();
       obsPub.publish(obs_marker[o]);
     }
-    ros::Duration(2.0/N).sleep();
+    ros::Duration(5.0/N).sleep();
   }
   return 0;
 }
