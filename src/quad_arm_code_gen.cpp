@@ -80,12 +80,15 @@ int main(int argc, char** argv) {
   ocp.subjectTo(-1.0 <= z1 <= 1.0);
   ocp.subjectTo(-1.0 <= ga1 <= 1.0);
 
-  ocp.subjectTo(AT_START, q1 == -1.56);
-  ocp.subjectTo(AT_START, q2 == 1.56);
-
   ocp.subjectTo(AT_END, x1 == 0.0);
   ocp.subjectTo(AT_END, y1 == 0.0);
   ocp.subjectTo(AT_END, z1 == 0.0);
+  ocp.subjectTo(AT_END, x2 == 0.0);
+  ocp.subjectTo(AT_END, y2 == 0.0);
+  ocp.subjectTo(AT_END, z2 == 0.0);
+  ocp.subjectTo(AT_END, x3 == 0.0);
+  ocp.subjectTo(AT_END, y3 == 0.0);
+  ocp.subjectTo(AT_END, z3 == 0.0);
   ocp.subjectTo(AT_END, ga1 == 0.0);
 
   ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == 3.5);
@@ -93,7 +96,6 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == 3.5);
 
   ocp.subjectTo(AT_END, (l1*sin(q1) + l2*sin(q1 + q2)) <= -0.05);
-  
 
   double obs[] = {2.0, 2.5};
   double ora = 0.5;

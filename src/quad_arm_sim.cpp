@@ -45,12 +45,6 @@ int main(int argc, char** argv) {
     acadoVariables.x[i*NX + 12] = 0.0;
     acadoVariables.x[i*NX + 14] = -1.56;
     acadoVariables.x[i*NX + 15] = 1.56;
-
-    // acadoVariables.x[i*NX] = 0.0;
-    // acadoVariables.x[i*NX + 1] = 0.0;
-    // acadoVariables.x[i*NX + 2] = 0.0;
-    // acadoVariables.x[i*NX + 14] = 1.57;
-    // acadoVariables.x[i*NX + 15] = -1.57;
   }
 
   for (i = 0; i < NU * N; ++i)  acadoVariables.u[i] = 0.0;
@@ -65,6 +59,8 @@ int main(int argc, char** argv) {
   /* MPC: initialize the current state feedback. */
 #if ACADO_INITIAL_STATE_FIXED
   for (i = 0; i < NX; ++i) acadoVariables.x0[i] = 0.0;
+  acadoVariables.x0[14] = -1.56;
+  acadoVariables.x0[15] = 1.56;
 #endif
 
   /* Prepare first step */
