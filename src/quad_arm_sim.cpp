@@ -20,8 +20,8 @@
 #define NYN         ACADO_NYN /* Number of measurements/references on node N. */
 
 #define N           ACADO_N   /* Number of intervals in the horizon. */
-#define NUM_OBS   2
-#define NUM_STEPS 20
+#define NUM_OBS   1
+#define NUM_STEPS 10
 
 /* Global variables used by the solver. */
 ACADOvariables acadoVariables;
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   /* Initialize the solver. */
   acado_initializeSolver();
 
-  double gx = 3.5; double gy = 3.5; double gz = 3.5;
+  double gx = 2.0; double gy = 0.0; double gz = 2.0;
 
   /* Initialize straight line trajectory. */
   for (i = 0; i < (N + 1); ++i) {
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
     acadoVariables.x[i*NX + 2] = gz/((double) N)*i;
     acadoVariables.x[i*NX + 12] = 0.0;
     acadoVariables.x[i*NX + 14] = -1.56;
-    acadoVariables.x[i*NX + 15] = 1.56;
+    acadoVariables.x[i*NX + 15] = 0.0;
   }
 
   for (i = 0; i < NU * N; ++i)  acadoVariables.u[i] = 0.0;
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
 #if ACADO_INITIAL_STATE_FIXED
   for (i = 0; i < NX; ++i) acadoVariables.x0[i] = 0.0;
   acadoVariables.x0[14] = -1.56;
-  acadoVariables.x0[15] = 1.56;
+  acadoVariables.x0[15] = 0.0;
 #endif
 
   /* Prepare first step */
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 
   printf("\n\n time:   %.3g seconds\n\n", te);
 
-  ros::Duration(1.0).sleep();
+  ros::Duration(5.0).sleep();
   tf::TransformBroadcaster br;
   ros::Publisher jointPub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
   ros::Publisher goalPub = nh.advertise<visualization_msgs::Marker>("/goal_marker", 1);
@@ -99,9 +99,9 @@ int main(int argc, char** argv) {
   marker.id = 0;
   marker.type = visualization_msgs::Marker::CUBE;
   marker.action = visualization_msgs::Marker::ADD;
-  marker.pose.position.x = 3.5;
-  marker.pose.position.y = 3.5;
-  marker.pose.position.z = 3.5 - 0.0875;
+  marker.pose.position.x = gx;
+  marker.pose.position.y = gy;
+  marker.pose.position.z = gz - 0.0875;
   marker.pose.orientation.x = 0.0;
   marker.pose.orientation.y = 0.0;
   marker.pose.orientation.z = 0.0;
@@ -109,12 +109,12 @@ int main(int argc, char** argv) {
   marker.scale.x = 0.1;
   marker.scale.y = 0.1;
   marker.scale.z = 0.1;
-  marker.color.a = 1.0; 
+  marker.color.a = 1.0;
   marker.color.r = 0.0;
   marker.color.g = 1.0;
   marker.color.b = 0.0;
 
-  double obs[] = {1.5, 2.5};
+  double obs[] = {1.0};
   visualization_msgs::Marker obs_marker[NUM_OBS];
 
   for(int o = 0; o < NUM_OBS; o++) {
@@ -123,15 +123,15 @@ int main(int argc, char** argv) {
     obs_marker[o].type = visualization_msgs::Marker::SPHERE;
     obs_marker[o].action = visualization_msgs::Marker::ADD;
     obs_marker[o].pose.position.x = obs[o];
-    obs_marker[o].pose.position.y = obs[o] + 0.2;
+    obs_marker[o].pose.position.y = 0.0;
     obs_marker[o].pose.position.z = obs[o] + 0.2;
     obs_marker[o].pose.orientation.x = 0.0;
     obs_marker[o].pose.orientation.y = 0.0;
     obs_marker[o].pose.orientation.z = 0.0;
     obs_marker[o].pose.orientation.w = 1.0;
-    obs_marker[o].scale.x = 0.3;
-    obs_marker[o].scale.y = 0.3;
-    obs_marker[o].scale.z = 0.3;
+    obs_marker[o].scale.x = 0.2;
+    obs_marker[o].scale.y = 0.2;
+    obs_marker[o].scale.z = 0.2;
     obs_marker[o].color.a = 1.0; 
     obs_marker[o].color.r = 1.0;
     obs_marker[o].color.g = 0.0;
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
       obs_marker[o].header.stamp = ros::Time::now();
       obsPub.publish(obs_marker[o]);
     }
-    ros::Duration(5.0/N).sleep();
+    ros::Duration(0.1).sleep();
   }
   return 0;
 }

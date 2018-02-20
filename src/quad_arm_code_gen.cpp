@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
   f << dot(q2) == qd2; 
 
   DMatrix Q(6, 6);
-  Q(0,0) = 0.01; Q(1,1) = 0.01; Q(2,2) = 0.01;
-  Q(3,3) = 1.0; Q(4,4) = 0.01; Q(5,5) = 0.01;
+  Q(0,0) = 1.0; Q(1,1) = 1.0; Q(2,2) = 1.0;
+  Q(3,3) = 0.1; Q(4,4) = 0.01; Q(5,5) = 0.01;
 
   Function eta;
   eta << x4 << y4 << z4 << ga2 << qd1 << qd2;
@@ -91,20 +91,21 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, z3 == 0.0);
   ocp.subjectTo(AT_END, ga1 == 0.0);
 
-  ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == 3.5);
-  ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == 3.5);
-  ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == 3.5);
+  ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == 2.0);
+  ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == 0.0);
+  ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == 2.0);
 
   ocp.subjectTo(AT_END, (l1*sin(q1) + l2*sin(q1 + q2)) <= -0.05);
+  ocp.subjectTo(AT_END, (l1*cos(q1) + l2*cos(q1 + q2)) >= 0.05);
 
-  double obs[] = {2.0, 2.5};
+  double obs[] = {1.0};
   double ora = 0.5;
-  for(int ii = 0; ii < 2; ii++) {
+  for(int ii = 0; ii < 1; ii++) {
     ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1 + q2))*cos(ga0))-obs[ii])*((x0 + (l1*cos(q1) + l2*cos(q1 + q2))*cos(ga0))-obs[ii])
-                   +((y0 + (l1*cos(q1) + l2*cos(q1 + q2))*sin(ga0))-obs[ii]-0.2)*((y0 + (l1*cos(q1) + l2*cos(q1 + q2))*sin(ga0))-obs[ii]-0.2)
+                   +((y0 + (l1*cos(q1) + l2*cos(q1 + q2))*sin(ga0)))*((y0 + (l1*cos(q1) + l2*cos(q1 + q2))*sin(ga0)))
                    +((z0 + l1*sin(q1) + l2*sin(q1 + q2))-obs[ii]-0.2)*((z0 + l1*sin(q1) + l2*sin(q1 + q2))-obs[ii]-0.2)) >= ora*ora);
 
-    ocp.subjectTo(((x0-obs[ii])*(x0-obs[ii])+(y0-obs[ii]-0.2)*(y0-obs[ii]-0.2)+(z0-obs[ii]-0.2)*(z0-obs[ii]-0.2)) >= ora*ora);
+    ocp.subjectTo(((x0-obs[ii])*(x0-obs[ii])+(y0)*(y0)+(z0-obs[ii]-0.2)*(z0-obs[ii]-0.2)) >= ora*ora);
   }
 
   OCPexport mpc(ocp);

@@ -38,7 +38,7 @@ subplot(3,1,2)
 plot(t,y)
 subplot(3,1,3)
 plot(t,z)
-suptitle('quad position')
+suptitle('Quad Position')
 
 figure
 subplot(3,1,1)
@@ -47,7 +47,7 @@ subplot(3,1,2)
 plot(t,vy)
 subplot(3,1,3)
 plot(t,vz)
-suptitle('quad velocity')
+suptitle('Quad Velocity')
 
 figure
 subplot(3,1,1)
@@ -56,26 +56,34 @@ subplot(3,1,2)
 plot(t,ay)
 subplot(3,1,3)
 plot(t,az)
-suptitle('quad acceleration')
+suptitle('Quad Acceleration')
 
 figure
 subplot(2,1,1)
 plot(t,ga)
 subplot(2,1,2)
 plot(t,wz)
-suptitle('yaw and yaw rate')
+suptitle('Yaw and Yaw rate')
 
 figure
 subplot(2,1,1)
 plot(t,q1)
 subplot(2,1,2)
 plot(t,q2)
-suptitle('joint angles')
+suptitle('Joint Angles')
 
 figure
 subplot(2,1,1)
 plot(t,qd1)
 subplot(2,1,2)
 plot(t,qd2)
-suptitle('joint velocities')
+suptitle('Joint Velocities')
 
+figure
+subplot(3,1,1)
+plot(t,sx)
+subplot(3,1,2)
+plot(t,sy)
+subplot(3,1,3)
+plot(t,sz)
+suptitle('Quad Snap')
