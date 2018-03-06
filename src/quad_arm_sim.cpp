@@ -47,10 +47,11 @@ int main(int argc, char** argv) {
 
   /* Initialize straight line trajectory. */
   for (i = 0; i < (N + 1); ++i) {
+    double k = (double)i/(double)N;
     acadoVariables.x[i*NX] = gx/((double) N)*i;
-    acadoVariables.x[i*NX + 1] = gy/((double) N)*i;
+    acadoVariables.x[i*NX + 1] = gy/((double) N)*i + 0.2*sin(k*3.14);
     acadoVariables.x[i*NX + 2] = gz/((double) N)*i;
-    acadoVariables.x[i*NX + 12] = 0.0;
+    acadoVariables.x[i*NX + 12] = k*0.78;
     acadoVariables.x[i*NX + 14] = -1.56;
     acadoVariables.x[i*NX + 15] = 0.0;
   }
@@ -87,7 +88,7 @@ int main(int argc, char** argv) {
 
   printf("\n\n time:   %.3g seconds\n\n", te);
 
-  ros::Duration(5.0).sleep();
+  ros::Duration(0.50).sleep();
   tf::TransformBroadcaster br;
   ros::Publisher jointPub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
   ros::Publisher goalPub = nh.advertise<visualization_msgs::Marker>("/goal_marker", 1);
