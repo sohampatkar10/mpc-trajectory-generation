@@ -10,11 +10,11 @@ goal_y: 3.0
 goal_z: 3.0
 
 obs_x: 1.0
-obs_y: 1.5
+obs_y: 1.0
 obs_z: 1.0
 
 obs_x2: 2.0
-obs_y2: 1.5
+obs_y2: 2.0
 obs_z2: 2.0
 
 obs_r: 0.5

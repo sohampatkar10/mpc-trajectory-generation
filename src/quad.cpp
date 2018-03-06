@@ -12,6 +12,7 @@
 #include <tf/transform_broadcaster.h>
 #include <sensor_msgs/JointState.h>
 #include <visualization_msgs/Marker.h>
+#include <nav_msgs/Odometry.h>
 /**
 * An example of an optimal control problem for
 * a quadrotor-arm system without obstacles.
@@ -50,8 +51,8 @@ int main(int argc, char** argv) {
 
   Control x4, y4, z4, ga2;
   double ts = 0.0;
-  double te; nh.getParam("te", te);
-  int numSteps; nh.getParam("numSteps", numSteps);
+  double te = 5.0;
+  int numSteps = 50; 
   DifferentialEquation  f(te, ts);
 
   f << dot(x0) == x1;
@@ -116,7 +117,7 @@ int main(int argc, char** argv) {
   ocp.minimizeLSQ(Q, eta, offset); // Trajectory Cost
   std::cout <<"Added trajectory cost" << std::endl;
 
-  ocp.minimizeLSQEndTerm(W, phi, goal); // Terminal Cost
+  // ocp.minimizeLSQEndTerm(W, phi, goal); // Terminal Cost
 
   ocp.subjectTo(f); // Dynamics
 
@@ -152,6 +153,10 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, z1 == 0.0);
   ocp.subjectTo(AT_END, ga1 == 0.0);
 
+  ocp.subjectTo(AT_END, x0 == gx);
+  ocp.subjectTo(AT_END, y0 == gy);
+  ocp.subjectTo(AT_END, z0 == gz);
+
   ocp.subjectTo(((x0-ox)*(x0-ox) + (y0-oy)*(y0-oy) + (z0-oz)*(z0-oz)) >= ora*ora);
   ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= ora*ora);
   std::cout <<"Added ocp" << std::endl;
@@ -160,10 +165,25 @@ int main(int argc, char** argv) {
   */
   OptimizationAlgorithm algorithm(ocp);
 
+  Grid timeGrid(ts, te, numSteps+1);
+  VariablesGrid xi(14, timeGrid);
+  VariablesGrid ui(4, timeGrid);
+
+  for(int tt=0; tt < numSteps+1; tt++) {
+    double k = (double)tt/double(numSteps);
+    xi(tt,0) = k*gx + 0.2*sin(k*3.14); xi(tt,1) = k*gy; xi(tt,2) = k*gz;
+    xi(tt,3) = gx/te; xi(tt,4) = gy/te; xi(tt,5) = gz/te;
+    xi(tt,6) = 0.0; xi(tt,7) = 0.0; xi(tt,8) = 0.0;
+    xi(tt,9) = 0.0; xi(tt,10) = 0.0; xi(tt,11) = 0.0;
+    xi(tt,12) = k*0.5; xi(tt,13) = 0.5/te;
+  }
+
+  algorithm.initializeDifferentialStates(xi);
+
   algorithm.set( INTEGRATOR_TYPE, INT_RK45);
   algorithm.set(DISCRETIZATION_TYPE, COLLOCATION);
   algorithm.set( HESSIAN_APPROXIMATION, GAUSS_NEWTON);
-  algorithm.set(KKT_TOLERANCE, 5e-2);
+  algorithm.set(KKT_TOLERANCE, 1e-4);
 
   std::cout <<"Added optimization scheme" << std::endl;
   /**
@@ -188,19 +208,19 @@ int main(int argc, char** argv) {
   algorithm.getDifferentialStates(states_file.c_str());
   algorithm.getControls(controls_file.c_str());
 
-  Grid timeGrid(ts, te, numSteps);
   VariablesGrid states(14, timeGrid);
   algorithm.getDifferentialStates(states);
   ROS_INFO("No of time points = %i", states.getNumPoints());
   /**
   * Visuaize trajectory in Rviz
   */
-  ros::Duration(1.0).sleep();
+  ros::Duration(0.5).sleep();
   tf::TransformBroadcaster br;
   ros::Publisher jointPub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
   ros::Publisher goalPub = nh.advertise<visualization_msgs::Marker>("/goal_marker", 2);
   ros::Publisher obsPub = nh.advertise<visualization_msgs::Marker>("/obs_marker", 2);
   ros::Publisher obsPub2 = nh.advertise<visualization_msgs::Marker>("/obs_marker2", 2);
+  ros::Publisher odomPub = nh.advertise<nav_msgs::Odometry>("/odometry",1);
 
   visualization_msgs::Marker marker;
   marker.header.frame_id = "world";
@@ -272,6 +292,22 @@ int main(int argc, char** argv) {
     goalPub.publish(marker);
     obsPub.publish(marker2);
     obsPub2.publish(marker3);
+
+    nav_msgs::Odometry odommsg;
+    odommsg.header.stamp = ros::Time::now();
+    odommsg.header.frame_id = "world";
+    odommsg.pose.pose.position.x = states(tt,0);
+    odommsg.pose.pose.position.y = states(tt,1);
+    odommsg.pose.pose.position.z = states(tt,2);
+
+    odommsg.pose.pose.orientation = tf::createQuaternionMsgFromYaw(states(tt,12));
+
+    odommsg.twist.twist.linear.x = states(tt,3);
+    odommsg.twist.twist.linear.y = states(tt,4);
+    odommsg.twist.twist.linear.z = states(tt,5);
+
+    odomPub.publish(odommsg);
+
     ros::Duration(te/numSteps).sleep();
   }
   return 0;
