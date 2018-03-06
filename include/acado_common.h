@@ -246,8 +246,8 @@ real_t pacA02Dx0[ 5 ];
 /** Matrix of size: 300 x 300 (row major format) */
 real_t H[ 90000 ];
 
-/** Matrix of size: 461 x 300 (row major format) */
-real_t A[ 138300 ];
+/** Matrix of size: 561 x 300 (row major format) */
+real_t A[ 168300 ];
 
 /** Column vector of size: 300 */
 real_t g[ 300 ];
@@ -258,17 +258,17 @@ real_t lb[ 300 ];
 /** Column vector of size: 300 */
 real_t ub[ 300 ];
 
-/** Column vector of size: 461 */
-real_t lbA[ 461 ];
+/** Column vector of size: 561 */
+real_t lbA[ 561 ];
 
-/** Column vector of size: 461 */
-real_t ubA[ 461 ];
+/** Column vector of size: 561 */
+real_t ubA[ 561 ];
 
 /** Column vector of size: 300 */
 real_t x[ 300 ];
 
-/** Column vector of size: 761 */
-real_t y[ 761 ];
+/** Column vector of size: 861 */
+real_t y[ 861 ];
 
 
 } ACADOworkspace;

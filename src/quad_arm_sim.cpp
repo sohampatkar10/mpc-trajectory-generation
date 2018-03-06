@@ -42,17 +42,17 @@ int main(int argc, char** argv) {
 
   /* Initialize the solver. */
   acado_initializeSolver();
-
+  double l1 = 0.175; double l2 = 0.42;
   double gx = 2.0; double gy = 0.0; double gz = 2.0;
 
   /* Initialize straight line trajectory. */
   for (i = 0; i < (N + 1); ++i) {
     double k = (double)i/(double)N;
-    acadoVariables.x[i*NX] = gx/((double) N)*i;
-    acadoVariables.x[i*NX + 1] = gy/((double) N)*i + 0.2*sin(k*3.14);
-    acadoVariables.x[i*NX + 2] = gz/((double) N)*i;
-    acadoVariables.x[i*NX + 12] = k*0.78;
-    acadoVariables.x[i*NX + 14] = -1.56;
+    acadoVariables.x[i*NX] = gx/((double) N)*(double)i;
+    acadoVariables.x[i*NX + 1] = gy/((double) N)*(double)i - 0.4*k;
+    acadoVariables.x[i*NX + 2] = gz/((double) N)*(double)i;
+    acadoVariables.x[i*NX + 12] = k;
+    acadoVariables.x[i*NX + 14] = -1.56 + k*1.56;
     acadoVariables.x[i*NX + 15] = 0.0;
   }
 
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
   marker.color.g = 1.0;
   marker.color.b = 0.0;
 
-  double obs[] = {1.0};
+  double obs[] = {1.4};
   visualization_msgs::Marker obs_marker[NUM_OBS];
 
   for(int o = 0; o < NUM_OBS; o++) {
@@ -124,6 +124,7 @@ int main(int argc, char** argv) {
     obs_marker[o].type = visualization_msgs::Marker::SPHERE;
     obs_marker[o].action = visualization_msgs::Marker::ADD;
     obs_marker[o].pose.position.x = obs[o];
+    // obs_marker[o].pose.position.y = obs[o];
     obs_marker[o].pose.position.y = 0.0;
     obs_marker[o].pose.position.z = obs[o] + 0.2;
     obs_marker[o].pose.orientation.x = 0.0;
@@ -153,7 +154,6 @@ int main(int argc, char** argv) {
     ga = acadoVariables.x[NX*tt + 12];
     q1 = acadoVariables.x[NX*tt + 14];
     q2 = acadoVariables.x[NX*tt + 15];
-    double l1 = 0.175; double l2 = 0.42;
 
     for(int s=0; s < NX; s++) states << acadoVariables.x[NX*tt + s] <<" ";
     states <<"\n";

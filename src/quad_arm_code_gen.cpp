@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
   f << dot(q2) == qd2; 
 
   DMatrix Q(6, 6);
-  Q(0,0) = 1.0; Q(1,1) = 1.0; Q(2,2) = 1.0;
-  Q(3,3) = 0.1; Q(4,4) = 0.01; Q(5,5) = 0.01;
+  Q(0,0) = 0.001; Q(1,1) = 0.001; Q(2,2) = 0.001;
+  Q(3,3) = 0.01; Q(4,4) = 0.01; Q(5,5) = 0.01;
 
   Function eta;
   eta << x4 << y4 << z4 << ga2 << qd1 << qd2;
@@ -91,14 +91,16 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, z3 == 0.0);
   ocp.subjectTo(AT_END, ga1 == 0.0);
 
-  ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == 2.0);
-  ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == 0.0);
-  ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == 2.0);
+  double gx = 2.0; double gy = 0.0; double gz = 2.0;
+
+  ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == gx);
+  ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == gy);
+  ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == gz);
 
   ocp.subjectTo(AT_END, (l1*sin(q1) + l2*sin(q1 + q2)) <= -0.05);
   ocp.subjectTo(AT_END, (l1*cos(q1) + l2*cos(q1 + q2)) >= 0.05);
 
-  double obs[] = {1.0};
+  double obs[] = {1.4};
   double ora = 0.5;
   for(int ii = 0; ii < 1; ii++) {
     ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1 + q2))*cos(ga0))-obs[ii])*((x0 + (l1*cos(q1) + l2*cos(q1 + q2))*cos(ga0))-obs[ii])
@@ -109,6 +111,8 @@ int main(int argc, char** argv) {
   }
 
   OCPexport mpc(ocp);
+
+  ocp.subjectTo(x0 <= gx + 0.1); ocp.subjectTo(z0 <= gz + 0.5);
 
   mpc.set(HESSIAN_APPROXIMATION, GAUSS_NEWTON);
   mpc.set(DISCRETIZATION_TYPE, MULTIPLE_SHOOTING );
