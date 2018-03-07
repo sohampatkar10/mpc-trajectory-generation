@@ -1,4 +1,3 @@
-// Acado
 #include <acado_toolkit.hpp>
 #include <acado_optimal_control.hpp>
 #include <acado_gnuplot.hpp>

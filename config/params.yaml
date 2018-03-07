@@ -5,12 +5,12 @@ quad_z0: 0.0
 arm_q1: -1.57
 arm_q2: 1.57
 
-goal_x: 3.0
-goal_y: 3.0
-goal_z: 3.0
+goal_x: 2.0
+goal_y: 0.0
+goal_z: 2.0
 
 obs_x: 1.0
-obs_y: 1.0
+obs_y: 0.0
 obs_z: 1.0
 
 obs_x2: 2.0

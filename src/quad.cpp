@@ -47,9 +47,10 @@ int main(int argc, char** argv) {
                     x1, y1, z1,
                     x2, y2, z2,
                     x3, y3, z3,
-                    ga0, ga1;
+                    ga0, ga1,
+                    q1, q2;
 
-  Control x4, y4, z4, ga2;
+  Control x4, y4, z4, ga2, qd1, qd2;
   double ts = 0.0;
   double te = 5.0;
   int numSteps = 50; 
@@ -74,6 +75,9 @@ int main(int argc, char** argv) {
   f << dot(ga0) == ga1;
   f << dot(ga1) == ga2;
 
+  f << dot(q1) == qd1;
+  f << dot(q2) == qd2;
+
   std::cout <<"Added Dynamics" << std::endl;
   /**
   * Cost along trajectory
@@ -84,10 +88,11 @@ int main(int argc, char** argv) {
   */
   std::string qFile;
   nh.getParam("qFile", qFile);
-  DMatrix Q(4, 4); Q.read(qFile.c_str());
-  DVector offset(4); offset.setAll(0.0);
+  DMatrix Q(6, 6); Q.setIdentity();
+  Q(0,0) = 0.01; Q(1,1) = 0.01; Q(2,2) = 0.01;
+  DVector offset(6); offset.setAll(0.0);
   Function eta;
-  eta << x4 << y4 << z4 << ga2;
+  eta << x4 << y4 << z4 << ga2 << qd1 << qd2;
   /**
   * Terminal Cost
   */
@@ -103,10 +108,6 @@ int main(int argc, char** argv) {
   DVector goal(3);
   goal(0) = gx; goal(1) = gy; goal(2) = gz;
 
-  Function phi;
-  phi << x0;
-  phi << y0;
-  phi << z0;
   /**
   * Set up optimal control problem
   *
@@ -142,23 +143,60 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_START, y0 == start_y);
   ocp.subjectTo(AT_START, z0 == start_z);
   ocp.subjectTo(AT_START, ga0 == 0.0);
+  ocp.subjectTo(AT_START, q1 == -1.56);
+  ocp.subjectTo(AT_START, q2 == 0.0);
 
   ocp.subjectTo(AT_START, x1 == 0.0);
   ocp.subjectTo(AT_START, y1 == 0.0);
   ocp.subjectTo(AT_START, z1 == 0.0);
   ocp.subjectTo(AT_START, ga1 == 0.0);
+  ocp.subjectTo(AT_START, qd1 == 0.0);
+  ocp.subjectTo(AT_START, qd2 == 0.0);
+
+  ocp.subjectTo(-1.57 <= q1 <= 0.0); // joint limits
+  ocp.subjectTo(-1.57 <= q2 <= 1.57); // joint limits
+  ocp.subjectTo(-1.57 <= ga0 <= 1.57); // joint limits
+
+  ocp.subjectTo(-0.78 <= qd1 <= 0.78); // joint velocity limits
+  ocp.subjectTo(-0.78 <= qd2 <= 0.78);
+
+  ocp.subjectTo(-1.0 <= x1 <= 1.0);
+  ocp.subjectTo(-1.0 <= y1 <= 1.0);
+  ocp.subjectTo(-1.0 <= z1 <= 1.0);
+  ocp.subjectTo(-1.0 <= ga1 <= 1.0);
 
   ocp.subjectTo(AT_END, x1 == 0.0);
   ocp.subjectTo(AT_END, y1 == 0.0);
   ocp.subjectTo(AT_END, z1 == 0.0);
+  ocp.subjectTo(AT_END, x2 == 0.0);
+  ocp.subjectTo(AT_END, y2 == 0.0);
+  ocp.subjectTo(AT_END, z2 == 0.0);
+  ocp.subjectTo(AT_END, x3 == 0.0);
+  ocp.subjectTo(AT_END, y3 == 0.0);
+  ocp.subjectTo(AT_END, z3 == 0.0);
   ocp.subjectTo(AT_END, ga1 == 0.0);
 
-  ocp.subjectTo(AT_END, x0 == gx);
-  ocp.subjectTo(AT_END, y0 == gy);
-  ocp.subjectTo(AT_END, z0 == gz);
+  double l1 = 0.175; double l2 = 0.42;
+
+  ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == gx);
+  ocp.subjectTo(AT_END, ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == gy);
+  ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == gz);
+
+  ocp.subjectTo(AT_END, (l1*sin(q1) + l2*sin(q1 + q2)) <= -0.05);
+  ocp.subjectTo(AT_END, (l1*cos(q1) + l2*cos(q1 + q2)) >= 0.05);
 
   ocp.subjectTo(((x0-ox)*(x0-ox) + (y0-oy)*(y0-oy) + (z0-oz)*(z0-oz)) >= ora*ora);
-  ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= ora*ora);
+  // ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= ora*ora);
+
+  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox) + 
+  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy) + 
+  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)) >= ora*ora);
+
+  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2) + 
+  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2) + 
+  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)) >= ora*ora);
+
+  ocp.subjectTo(x0 <= gx + 0.1); ocp.subjectTo(z0 <= gz + 0.3);
   std::cout <<"Added ocp" << std::endl;
   /**
   * Set up optimization parameters
@@ -166,34 +204,30 @@ int main(int argc, char** argv) {
   OptimizationAlgorithm algorithm(ocp);
 
   Grid timeGrid(ts, te, numSteps+1);
-  VariablesGrid xi(14, timeGrid);
-  VariablesGrid ui(4, timeGrid);
+  VariablesGrid xi(16, timeGrid);
+  VariablesGrid ui(6, timeGrid);
 
   for(int tt=0; tt < numSteps+1; tt++) {
     double k = (double)tt/double(numSteps);
-    xi(tt,0) = k*gx + 0.2*sin(k*3.14); xi(tt,1) = k*gy; xi(tt,2) = k*gz;
-    xi(tt,3) = gx/te; xi(tt,4) = gy/te; xi(tt,5) = gz/te;
-    xi(tt,6) = 0.0; xi(tt,7) = 0.0; xi(tt,8) = 0.0;
-    xi(tt,9) = 0.0; xi(tt,10) = 0.0; xi(tt,11) = 0.0;
-    xi(tt,12) = k*0.5; xi(tt,13) = 0.5/te;
+    xi(tt,0) = k*gx; xi(tt,1) = k*gy; xi(tt,2) = k*gz;
+    xi(tt,12) = 0.0;
+    xi(tt,14) = 0.0; xi(tt,15) = 0.0;
   }
 
   algorithm.initializeDifferentialStates(xi);
+  algorithm.initializeControls(ui);
 
+  algorithm.set(QP_SOLVER, QP_QPOASES);
+  algorithm.set(INFEASIBLE_QP_HANDLING, IQH_STOP);
   algorithm.set( INTEGRATOR_TYPE, INT_RK45);
   algorithm.set(DISCRETIZATION_TYPE, COLLOCATION);
   algorithm.set( HESSIAN_APPROXIMATION, GAUSS_NEWTON);
-  algorithm.set(KKT_TOLERANCE, 1e-4);
+  algorithm.set(KKT_TOLERANCE, 1e-3);
 
   std::cout <<"Added optimization scheme" << std::endl;
   /**
   * Solve
   */
-  // GnuplotWindow window;
-  // window.addSubplot(x1 ,"Velocity x");
-  // window.addSubplot(y1 ,"Velocity y");
-  // window.addSubplot(z1 ,"Velocity z");
-  // algorithm << window;
   ros::Time t1 = ros::Time::now();
   // for(int k=0; k < 5; k++)
     algorithm.solve();
@@ -208,9 +242,8 @@ int main(int argc, char** argv) {
   algorithm.getDifferentialStates(states_file.c_str());
   algorithm.getControls(controls_file.c_str());
 
-  VariablesGrid states(14, timeGrid);
+  VariablesGrid states(16, timeGrid);
   algorithm.getDifferentialStates(states);
-  ROS_INFO("No of time points = %i", states.getNumPoints());
   /**
   * Visuaize trajectory in Rviz
   */
@@ -292,6 +325,16 @@ int main(int argc, char** argv) {
     goalPub.publish(marker);
     obsPub.publish(marker2);
     obsPub2.publish(marker3);
+
+    sensor_msgs::JointState joint_state;
+    joint_state.name.push_back("airbasetolink1");
+    joint_state.name.push_back("link1tolink2");
+
+    joint_state.position.push_back(-states(tt,14) + 1.57);
+    joint_state.position.push_back(-states(tt,15));
+    joint_state.header.stamp = ros::Time::now();
+
+    jointPub.publish(joint_state);
 
     nav_msgs::Odometry odommsg;
     odommsg.header.stamp = ros::Time::now();
