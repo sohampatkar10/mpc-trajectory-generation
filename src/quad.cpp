@@ -78,6 +78,18 @@ int main(int argc, char** argv) {
   f << dot(q1) == qd1;
   f << dot(q2) == qd2;
 
+  IntermediateState r,p,T, eex, eey, eez;
+
+  T = sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
+  r = asin((-x2*sin(ga0) + y2*cos(ga0))/T);
+  p = atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81));
+
+  double l1 = 0.175; double l2 = 0.42;
+
+  eex = (sin(r)*sin(ga0) + cos(r)*cos(ga0)*sin(p))*(l2*sin(q1 + q2) + l1*sin(q1)) + cos(p)*cos(ga0)*(l2*cos(q1 + q2) + l1*cos(q1));
+  eey =  cos(p)*sin(ga0)*(l2*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(r) - cos(r)*sin(p)*sin(ga0))*(l2*sin(q1 + q2) + l1*sin(q1));
+  eez =  cos(p)*cos(r)*(l2*sin(q1 + q2) + l1*sin(q1)) - sin(p)*(l2*cos(q1 + q2) + l1*cos(q1));
+
   std::cout <<"Added Dynamics" << std::endl;
   /**
   * Cost along trajectory
@@ -136,9 +148,6 @@ int main(int argc, char** argv) {
   nh.getParam("obs_z2", oz2);
   nh.getParam("obs_r", ora);
 
-  ROS_INFO("goal %f %f %f", gx, gy, gz);
-  ROS_INFO("obs %f %f %f", ox, oy, oz);
-
   ocp.subjectTo(AT_START, x0 == start_x);
   ocp.subjectTo(AT_START, y0 == start_y);
   ocp.subjectTo(AT_START, z0 == start_z);
@@ -176,63 +185,39 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, z3 == 0.0);
   ocp.subjectTo(AT_END, ga1 == 0.0);
 
-  double l1 = 0.175; double l2 = 0.42;
-
   ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == gx);
-  ocp.subjectTo(AT_END, ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == gy);
+  ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == gy);
   ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == gz);
 
   ocp.subjectTo(AT_END, (l1*sin(q1) + l2*sin(q1 + q2)) <= -0.05);
   ocp.subjectTo(AT_END, (l1*cos(q1) + l2*cos(q1 + q2)) >= 0.05);
 
-  ocp.subjectTo(((x0-ox)*(x0-ox) + (y0-oy)*(y0-oy) + (z0-oz)*(z0-oz)) >= ora*ora);
-  // ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= ora*ora);
-
-  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox) + 
-  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy) + 
-  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)) >= ora*ora);
-
-  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2) + 
-  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2) + 
-  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)) >= ora*ora);
-
   ocp.subjectTo(x0 <= gx + 0.1); ocp.subjectTo(z0 <= gz + 0.3);
-  std::cout <<"Added ocp" << std::endl;
   /**
   * Set up optimization parameters
   */
   OptimizationAlgorithm algorithm(ocp);
 
-  Grid timeGrid(ts, te, numSteps+1);
-  VariablesGrid xi(16, timeGrid);
-  VariablesGrid ui(6, timeGrid);
-
-  for(int tt=0; tt < numSteps+1; tt++) {
-    double k = (double)tt/double(numSteps);
-    xi(tt,0) = k*gx; xi(tt,1) = k*gy; xi(tt,2) = k*gz;
-    xi(tt,12) = 0.0;
-    xi(tt,14) = 0.0; xi(tt,15) = 0.0;
-  }
-
-  algorithm.initializeDifferentialStates(xi);
-  algorithm.initializeControls(ui);
-
-  algorithm.set(QP_SOLVER, QP_QPOASES);
+  algorithm.set(MAX_NUM_QP_ITERATIONS, 100);
   algorithm.set(INFEASIBLE_QP_HANDLING, IQH_STOP);
   algorithm.set( INTEGRATOR_TYPE, INT_RK45);
   algorithm.set(DISCRETIZATION_TYPE, COLLOCATION);
   algorithm.set( HESSIAN_APPROXIMATION, GAUSS_NEWTON);
   algorithm.set(KKT_TOLERANCE, 1e-3);
 
+  Grid timeGrid(ts, te, numSteps+1);
+  VariablesGrid xi(16, timeGrid);
+  VariablesGrid ui(6, timeGrid);
+
+  algorithm.initializeDifferentialStates(xi);
+  algorithm.initializeControls(ui);
+
   std::cout <<"Added optimization scheme" << std::endl;
   /**
   * Solve
   */
   ros::Time t1 = ros::Time::now();
-  // for(int k=0; k < 5; k++)
-    algorithm.solve();
-  ROS_INFO("OCP took %f seconds to solve", (ros::Time::now()-t1).toSec());
-
+  algorithm.solve();
   /**
   * Get final results
   */
@@ -241,6 +226,28 @@ int main(int argc, char** argv) {
   nh.getParam("controls_file", controls_file);
   algorithm.getDifferentialStates(states_file.c_str());
   algorithm.getControls(controls_file.c_str());
+
+  algorithm.getDifferentialStates(xi);
+  algorithm.getControls(ui);
+
+  ocp.subjectTo(((x0-ox)*(x0-ox) + (y0-oy)*(y0-oy) + (z0-oz)*(z0-oz)) >= ora*ora);
+  ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= ora*ora);
+
+  ocp.subjectTo(((eex-ox)*(eex-ox) + (eey-oy)*(eey-oy) + (eez-oz)*(eez-oz)) >= ora*ora);
+  ocp.subjectTo(((eex-ox2)*(eex-ox2) + (eez-oy2)*(eez-oy2) + (eez-oz2)*(eez-oz2)) >= ora*ora);
+
+  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox) + 
+  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy) + 
+  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)) >= ora*ora);
+  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2) + 
+  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2) + 
+  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)) >= ora*ora);
+
+  algorithm.initializeDifferentialStates(xi);
+  algorithm.initializeControls(ui);
+
+  algorithm.solve();
+  ROS_INFO("Final OCP took %f seconds to solve", (ros::Time::now()-t1).toSec());
 
   VariablesGrid states(16, timeGrid);
   algorithm.getDifferentialStates(states);
