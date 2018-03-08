@@ -50,6 +50,10 @@ int main(int argc, char** argv) {
                     ga0, ga1,
                     q1, q2;
 
+  IntermediateState eex, eey, eez;
+
+  double l1 = 0.175; double l2 = 0.42;
+
   Control x4, y4, z4, ga2, qd1, qd2;
   double ts = 0.0;
   double te = 5.0;
@@ -78,17 +82,16 @@ int main(int argc, char** argv) {
   f << dot(q1) == qd1;
   f << dot(q2) == qd2;
 
-  IntermediateState r,p,T, eex, eey, eez;
+  // eex = x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0);
+  // eey = y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0);
+  // eez = z0 + l1*sin(q1) + l2*sin(q1+q2);
 
-  T = sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
-  r = asin((-x2*sin(ga0) + y2*cos(ga0))/T);
-  p = atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81));
-
-  double l1 = 0.175; double l2 = 0.42;
-
-  eex = (sin(r)*sin(ga0) + cos(r)*cos(ga0)*sin(p))*(l2*sin(q1 + q2) + l1*sin(q1)) + cos(p)*cos(ga0)*(l2*cos(q1 + q2) + l1*cos(q1));
-  eey =  cos(p)*sin(ga0)*(l2*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(r) - cos(r)*sin(p)*sin(ga0))*(l2*sin(q1 + q2) + l1*sin(q1));
-  eez =  cos(p)*cos(r)*(l2*sin(q1 + q2) + l1*sin(q1)) - sin(p)*(l2*cos(q1 + q2) + l1*cos(q1));
+  // f << 0 == T - sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
+  // f << 0 == r - asin((-x2*sin(ga0) + y2*cos(ga0))/T);
+  // f << 0 == p - atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81));
+  eex = x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(l2*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(l2*cos(q1 + q2) + l1*cos(q1));
+  eey = y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(l2*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(l2*sin(q1 + q2) + l1*sin(q1));
+  eez = z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(l2*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(l2*cos(q1 + q2) + l1*cos(q1));
 
   std::cout <<"Added Dynamics" << std::endl;
   /**
@@ -206,7 +209,7 @@ int main(int argc, char** argv) {
   algorithm.set(KKT_TOLERANCE, 1e-3);
 
   Grid timeGrid(ts, te, numSteps+1);
-  VariablesGrid xi(16, timeGrid);
+  VariablesGrid xi(19, timeGrid);
   VariablesGrid ui(6, timeGrid);
 
   algorithm.initializeDifferentialStates(xi);
@@ -236,20 +239,13 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((eex-ox)*(eex-ox) + (eey-oy)*(eey-oy) + (eez-oz)*(eez-oz)) >= ora*ora);
   ocp.subjectTo(((eex-ox2)*(eex-ox2) + (eez-oy2)*(eez-oy2) + (eez-oz2)*(eez-oz2)) >= ora*ora);
 
-  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox) + 
-  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy) + 
-  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz)) >= ora*ora);
-  // ocp.subjectTo((((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2)*((x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0))-ox2) + 
-  //                 ((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2)*((y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0))-oy2) + 
-  //                 ((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)*((z0 + l1*sin(q1) + l2*sin(q1+q2))-oz2)) >= ora*ora);
-
   algorithm.initializeDifferentialStates(xi);
   algorithm.initializeControls(ui);
 
   algorithm.solve();
   ROS_INFO("Final OCP took %f seconds to solve", (ros::Time::now()-t1).toSec());
 
-  VariablesGrid states(16, timeGrid);
+  VariablesGrid states(19, timeGrid);
   algorithm.getDifferentialStates(states);
   /**
   * Visuaize trajectory in Rviz
@@ -323,8 +319,19 @@ int main(int argc, char** argv) {
   marker3.color.b = 0.0;
 
   for(int tt=0; tt < numSteps+1; tt++) {
+
+    double x = states(tt,0); double y = states(tt,1); double z = states(tt,2);
+    double xdd = states(tt,6); double ydd = states(tt,7); double zdd = states(tt,8);
+    double yaw = states(tt,12); double j1 = states(tt,14); double j2 = states(tt,15);
+    double ex = x + (l1*cos(j1) + l2*cos(j1+j2))*cos(yaw);
+    double ey = y + (l1*cos(j1) + l2*cos(j1+j2))*sin(yaw);
+    double ez = z + l1*sin(j1) + l2*sin(j1+j2);
+    double T = sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81));
+    double r = asin((-xdd*sin(yaw) + ydd*cos(yaw))/T);
+    double p = atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81));
+
     tf::Transform transform = tf::Transform(
-     tf::createQuaternionFromRPY(0,0,states(tt, 12)), 
+     tf::createQuaternionFromRPY(r,p,states(tt, 12)), 
      tf::Vector3(states(tt, 0), states(tt, 1), states(tt, 2)));
 
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "baselink"));
