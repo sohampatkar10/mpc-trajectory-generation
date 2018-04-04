@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="Airbotwith2dofarm">
+	<!-- Constants -->
+	<!--xacro:property name="pi" value="3.1415926535897931" /-->
+	<xacro:property name="degtorad" value="0.01745329251" />
+	<!-- Arm base wrt Quad -->
+  <xacro:property name="z0" value="-0.1"/>
+  <xacro:property name="x0" value="0.2"/>
+  <!-- Arm Lengths -->
+  <xacro:property name="l1" value=".255"/>
+  <xacro:property name="l2" value=".29"/>
+  <xacro:property name="x1" value=".0"/>
+  <xacro:property name="l3" value=".05"/>
+  <!--Structural Properties-->
+  <xacro:property name="m0" value="1.4"/>
+  <xacro:property name="m1" value=".1"/>
+  <xacro:property name="m2" value=".1"/>
+  <xacro:property name="m3" value=".03"/>
+  <xacro:macro name="compute_inertia_cuboid" params="mass x y z">
+    <mass value="${mass}"/>
+    <inertia ixx="${mass*(y*y + z*z)/12}" ixy="0.0" ixz="0.0" iyy="${mass*(x*x + z*z)/12}" iyz="0.0" izz="${mass*(x*x + y*y)/12}"/>
+  </xacro:macro>
+  <link name="baselink"/>
+  <link name="airbase">
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <geometry>
+        <mesh filename="package://gcop_urdf/meshes/quadrotor_base.dae" scale="3.0 3.0 3.0"/>
+        <!--box size="0.44 0.44 0.1632"/-->
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+			<xacro:compute_inertia_cuboid mass="${m0}" x="0.44" y="0.44" z="0.1632"/>
+      <!--mass value="${m0}"/>
+      <inertia ixx="${m0*4.32e-3}" ixy="0.0" ixz="0.0" iyy="${m0*4.32e-3}" iyz="0.0" izz="${m0*8.41e-3}"/-->
+    </inertial>
+  </link>
+  <link name="link1">
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0 0.0 ${l1/2}"/>
+      <material name="blue">
+        <color rgba="0 0 0.8 1"/>
+      </material>
+      <geometry>
+        <box size="0.02 0.02 ${l1}"/>
+      </geometry>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/><!-- Since motors are heavy they constitute most weight-->
+      <xacro:compute_inertia_cuboid mass="${m1}" x="0.05" y="0.05" z="0.05"/>
+    </inertial>
+  </link>
+  <link name="link2">
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0 0.0 ${l2/2}"/>
+      <geometry>
+        <box size="0.02 0.02 ${l2}"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 0.0"/>
+      <xacro:compute_inertia_cuboid mass="${m2}" x="0.05" y="0.05" z="0.05"/>
+    </inertial>
+  </link>
+  <link name="link3">
+    <visual>
+      <origin rpy="0 0 0" xyz="0.0 0.0 ${l3/2}"/>
+      <geometry>
+        <box size="0.02 0.1 ${l3}"/>
+      </geometry>
+      <material name="green">
+        <color rgba="0 0.8 0 1"/>
+      </material>
+    </visual>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0.0 0.0 ${l3/2}"/>
+      <xacro:compute_inertia_cuboid mass="${m3}" x="0.02" y="0.02" z="${l3}"/>
+    </inertial>
+  </link>
+  <!-- Joints -->
+  <joint name="basetoairbase" type="fixed">
+    <parent link="baselink"/>
+    <child link="airbase"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
+  </joint>
+  <joint name="airbasetolink1" type="revolute">
+    <parent link="airbase"/>
+    <child link="link1"/>
+    <origin rpy="0 0 0" xyz="${x0} 0 ${z0}"/>
+    <axis xyz="0 1 0"/>
+    <!--limit effort="30" velocity="10.0" lower="-${360*degtorad}" upper="${360*degtorad}"/-->
+    <limit effort="30" velocity="10.0" lower="${75*degtorad}" upper="${165*degtorad}"/>
+  </joint>
+  <joint name="link1tolink2" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin rpy="0 0 0" xyz="${x1} 0 ${l1}"/>
+    <axis xyz="0 1 0"/>
+    <!--limit effort="30" velocity="10.0" lower="-${360*degtorad}" upper="${360*degtorad}"/-->
+    <limit effort="30" velocity="10.0" lower="-${90*degtorad}" upper="${180*degtorad}"/>
+  </joint>
+  <joint name="link2tolink3" type="fixed">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin rpy="0 0 0" xyz="0 0 ${l2}"/>
+  </joint>
+</robot>

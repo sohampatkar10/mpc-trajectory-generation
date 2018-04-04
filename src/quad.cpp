@@ -10,6 +10,7 @@
 // ROS
 #include "ros/ros.h"
 #include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 #include <sensor_msgs/JointState.h>
 #include <visualization_msgs/Marker.h>
 #include <nav_msgs/Odometry.h>
@@ -28,6 +29,13 @@ USING_NAMESPACE_ACADO
 int main(int argc, char** argv) {
   ros::init(argc, argv, "quad_arm_ocp");
   ros::NodeHandle nh;
+
+  std::string states_file; nh.getParam("states_file", states_file);
+  std::string controls_file; nh.getParam("controls_file", controls_file);
+
+  std::ofstream states_log(states_file);
+  std::ofstream controls_log(controls_file);
+
   /**
   *
   * States and Dynamics
@@ -43,6 +51,9 @@ int main(int argc, char** argv) {
   * derivative of yaw rate and joint velocities
   *
   */
+
+  ros::Time t1 = ros::Time::now();
+
   DifferentialState x0, y0, z0, 
                     x1, y1, z1,
                     x2, y2, z2,
@@ -50,15 +61,36 @@ int main(int argc, char** argv) {
                     ga0, ga1,
                     q1, q2;
 
-  IntermediateState eex, eey, eez;
+  IntermediateState eex, eey, eez, T, r, p;
 
-  double l1 = 0.175; double l2 = 0.42;
+  IntermediateState p11x, p11y, p11z;
+  IntermediateState p12x, p12y, p12z;
+  IntermediateState p13x, p13y, p13z;
+  IntermediateState p14x, p14y, p14z;
+
+  IntermediateState p21x, p21y, p21z;
+  IntermediateState p22x, p22y, p22z;
+  IntermediateState p23x, p23y, p23z;
+  IntermediateState p24x, p24y, p24z;
+  IntermediateState p25x, p25y, p25z;
+
+  double lr; nh.getParam("link_r", lr);
+
+  double l1 = 0.255; double l2 = 0.29 + lr; 
+  double qoffx = 0.2; double qoffz = -0.1;
+
+  double l11 = lr; double l12 = 3.0*lr; 
+  double l13 = 5.0*lr; double l14 = 7.0*lr;
+
+  double l21 = lr; double l22 = 3.0*lr; 
+  double l23 = 5.0*lr; double l24 = 7.0*lr;
+  double l25 = 9.0*lr;
 
   Control x4, y4, z4, ga2, qd1, qd2;
   double ts = 0.0;
-  double te = 5.0;
-  int numSteps = 50; 
-  DifferentialEquation  f(te, ts);
+  double te; nh.getParam("te", te);
+  int numSteps; nh.getParam("numSteps", numSteps);
+  DifferentialEquation  f(ts, te);
 
   f << dot(x0) == x1;
   f << dot(y0) == y1;
@@ -86,12 +118,49 @@ int main(int argc, char** argv) {
   // eey = y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0);
   // eez = z0 + l1*sin(q1) + l2*sin(q1+q2);
 
-  // f << 0 == T - sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
-  // f << 0 == r - asin((-x2*sin(ga0) + y2*cos(ga0))/T);
-  // f << 0 == p - atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81));
-  eex = x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(l2*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(l2*cos(q1 + q2) + l1*cos(q1));
-  eey = y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(l2*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(l2*sin(q1 + q2) + l1*sin(q1));
-  eez = z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(l2*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(l2*cos(q1 + q2) + l1*cos(q1));
+  T = sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
+  r = asin((-x2*sin(ga0) + y2*cos(ga0))/T);
+  p = atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81));
+
+  eex =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l2*cos(q1 + q2) + l1*cos(q1));
+  eey =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l2*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1));
+  eez =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l2*cos(q1 + q2) + l1*cos(q1));
+
+  p11x = x0 + (qoffz + l11*sin(q1))*(sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l11*cos(q1));
+  p11y = y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l11*cos(q1)) - (qoffz + l11*sin(q1))*(cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0));
+  p11z = z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l11*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l11*cos(q1));
+
+  p12x = x0 + (qoffz + l12*sin(q1))*(sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l12*cos(q1));
+  p12y = y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l12*cos(q1)) - (qoffz + l12*sin(q1))*(cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0));
+  p12z = z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l12*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l12*cos(q1));
+
+  p13x = x0 + (qoffz + l13*sin(q1))*(sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l13*cos(q1));
+  p13y = y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l13*cos(q1)) - (qoffz + l13*sin(q1))*(cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0));
+  p13z = z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l13*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l13*cos(q1));
+
+  p14x = x0 + (qoffz + l14*sin(q1))*(sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l14*cos(q1));
+  p14y = y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l14*cos(q1)) - (qoffz + l14*sin(q1))*(cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0));
+  p14z = z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l14*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l14*cos(q1));
+
+  p21x =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l21*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l21*cos(q1 + q2) + l1*cos(q1));
+  p21y =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l21*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l21*sin(q1 + q2) + l1*sin(q1));
+  p21z =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l21*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l21*cos(q1 + q2) + l1*cos(q1));
+
+  p22x =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l22*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l22*cos(q1 + q2) + l1*cos(q1));
+  p22y =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l22*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l22*sin(q1 + q2) + l1*sin(q1));
+  p22z =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l22*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l22*cos(q1 + q2) + l1*cos(q1));
+
+  p23x =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l23*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l23*cos(q1 + q2) + l1*cos(q1));
+  p23y =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l23*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l23*sin(q1 + q2) + l1*sin(q1));
+  p23z =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l23*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l23*cos(q1 + q2) + l1*cos(q1));
+
+  p24x =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l24*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l24*cos(q1 + q2) + l1*cos(q1));
+  p24y =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l24*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l24*sin(q1 + q2) + l1*sin(q1));
+  p24z =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l24*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l24*cos(q1 + q2) + l1*cos(q1));
+
+  p25x =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l25*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l25*cos(q1 + q2) + l1*cos(q1));
+  p25y =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l25*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l25*sin(q1 + q2) + l1*sin(q1));
+  p25z =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l25*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l25*cos(q1 + q2) + l1*cos(q1));
 
   std::cout <<"Added Dynamics" << std::endl;
   /**
@@ -101,21 +170,14 @@ int main(int argc, char** argv) {
   * derivatives of flat outputs, yaw and joint
   * velocities, weighted by matrix Q
   */
-  std::string qFile;
-  nh.getParam("qFile", qFile);
   DMatrix Q(6, 6); Q.setIdentity();
-  Q(0,0) = 0.01; Q(1,1) = 0.01; Q(2,2) = 0.01;
+  // Q(4,4) = 0.01; Q(5,5) = 0.01;
+  Q *= 0.01; 
+  Q(3,3) = 1.0;
   DVector offset(6); offset.setAll(0.0);
   Function eta;
   eta << x4 << y4 << z4 << ga2 << qd1 << qd2;
-  /**
-  * Terminal Cost
-  */
-  std::string wFile;
-  nh.getParam("wFile", wFile);
-  DMatrix W(3,3); W.read(wFile.c_str());
 
-  // Hardcode goal pose for example
   double gx, gy, gz;
   nh.getParam("goal_x", gx);
   nh.getParam("goal_y", gy);
@@ -133,34 +195,50 @@ int main(int argc, char** argv) {
   ocp.minimizeLSQ(Q, eta, offset); // Trajectory Cost
   std::cout <<"Added trajectory cost" << std::endl;
 
-  // ocp.minimizeLSQEndTerm(W, phi, goal); // Terminal Cost
-
   ocp.subjectTo(f); // Dynamics
 
-  double start_x, start_y, start_z,
-        ox, oy, oz,
-        ox2, oy2, oz2, ora;
+  double start_x, start_y, start_z, start_yaw,
+        start_q1, start_q2,
+        cx, cy,
+        cx2, cy2,
+        ox1, oy1, oz1,
+        ox2, oy2, oz2,
+        ox3, oy3, oz3,
+        qr, tr, ora;
+
   nh.getParam("quad_x0", start_x);
   nh.getParam("quad_y0", start_y);
   nh.getParam("quad_z0", start_z);
-  nh.getParam("obs_x", ox);
-  nh.getParam("obs_y", oy);
-  nh.getParam("obs_z", oz);
-  nh.getParam("obs_x2", ox2);
-  nh.getParam("obs_y2", oy2);
-  nh.getParam("obs_z2", oz2);
+  nh.getParam("quad_ga0", start_yaw);
+
+  nh.getParam("arm_q1", start_q1);
+  nh.getParam("arm_q2", start_q2);
+
+  nh.getParam("cyl_obs_x", cx); nh.getParam("cyl_obs_y", cy);
+  nh.getParam("cyl_obs_x2", cx2); nh.getParam("cyl_obs_y2", cy2);
+  nh.getParam("table_obs1_x", ox1); nh.getParam("table_obs1_y", oy1); nh.getParam("table_obs1_z", oz1);
+  nh.getParam("table_obs2_x", ox2); nh.getParam("table_obs2_y", oy2); nh.getParam("table_obs2_z", oz2);
+  nh.getParam("table_obs3_x", ox3); nh.getParam("table_obs3_y", oy3); nh.getParam("table_obs3_z", oz3);
+  nh.getParam("quad_r", qr);
+  nh.getParam("table_r", tr);
   nh.getParam("obs_r", ora);
 
   ocp.subjectTo(AT_START, x0 == start_x);
   ocp.subjectTo(AT_START, y0 == start_y);
   ocp.subjectTo(AT_START, z0 == start_z);
-  ocp.subjectTo(AT_START, ga0 == 0.0);
-  ocp.subjectTo(AT_START, q1 == -1.56);
-  ocp.subjectTo(AT_START, q2 == 0.0);
+  ocp.subjectTo(AT_START, ga0 == start_yaw);
+  ocp.subjectTo(AT_START, q1 == start_q1);
+  ocp.subjectTo(AT_START, q2 == start_q2);
 
   ocp.subjectTo(AT_START, x1 == 0.0);
   ocp.subjectTo(AT_START, y1 == 0.0);
   ocp.subjectTo(AT_START, z1 == 0.0);
+  ocp.subjectTo(AT_START, x2 == 0.0);
+  ocp.subjectTo(AT_START, y2 == 0.0);
+  ocp.subjectTo(AT_START, z2 == 0.0);
+  ocp.subjectTo(AT_START, x3 == 0.0);
+  ocp.subjectTo(AT_START, y3 == 0.0);
+  ocp.subjectTo(AT_START, z3 == 0.0);
   ocp.subjectTo(AT_START, ga1 == 0.0);
   ocp.subjectTo(AT_START, qd1 == 0.0);
   ocp.subjectTo(AT_START, qd2 == 0.0);
@@ -173,9 +251,13 @@ int main(int argc, char** argv) {
   ocp.subjectTo(-0.78 <= qd2 <= 0.78);
 
   ocp.subjectTo(-1.0 <= x1 <= 1.0);
-  ocp.subjectTo(-1.0 <= y1 <= 1.0);
+  ocp.subjectTo(-2.0 <= y1 <= 1.0);
   ocp.subjectTo(-1.0 <= z1 <= 1.0);
   ocp.subjectTo(-1.0 <= ga1 <= 1.0);
+
+  ocp.subjectTo(-0.5 <= r <= 0.5);
+  ocp.subjectTo(-0.5 <= p <= 0.5);
+  ocp.subjectTo(T <= 12.0);
 
   ocp.subjectTo(AT_END, x1 == 0.0);
   ocp.subjectTo(AT_END, y1 == 0.0);
@@ -187,66 +269,133 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, y3 == 0.0);
   ocp.subjectTo(AT_END, z3 == 0.0);
   ocp.subjectTo(AT_END, ga1 == 0.0);
+  ocp.subjectTo(AT_END, qd1 == 0.0);
+  ocp.subjectTo(AT_END, qd2 == 0.0);
 
-  ocp.subjectTo(AT_END, (x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == gx);
+  ocp.subjectTo(AT_END, (x0 + qoffx + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == gx);
   ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == gy);
-  ocp.subjectTo(AT_END, (z0 + l1*sin(q1) + l2*sin(q1+q2)) == gz);
+  ocp.subjectTo(AT_END, (z0 + qoffz + l1*sin(q1) + l2*sin(q1+q2)) == gz);
 
-  ocp.subjectTo(AT_END, (l1*sin(q1) + l2*sin(q1 + q2)) <= -0.05);
-  ocp.subjectTo(AT_END, (l1*cos(q1) + l2*cos(q1 + q2)) >= 0.05);
+  ocp.subjectTo(AT_END, (q1+q2) == 0);
 
-  ocp.subjectTo(x0 <= gx + 0.1); ocp.subjectTo(z0 <= gz + 0.3);
+  ocp.subjectTo(x0 <= gx + 0.1);
+  ocp.subjectTo(-1.5 <= y0 <= 1.5);
+  ocp.subjectTo(0.001 <= z0 <= 5.0);
+
   /**
   * Set up optimization parameters
   */
-  OptimizationAlgorithm algorithm(ocp);
-
-  algorithm.set(MAX_NUM_QP_ITERATIONS, 100);
-  algorithm.set(INFEASIBLE_QP_HANDLING, IQH_STOP);
-  algorithm.set( INTEGRATOR_TYPE, INT_RK45);
-  algorithm.set(DISCRETIZATION_TYPE, COLLOCATION);
-  algorithm.set( HESSIAN_APPROXIMATION, GAUSS_NEWTON);
-  algorithm.set(KKT_TOLERANCE, 1e-3);
+  std::unique_ptr<OptimizationAlgorithm> algorithm;
+  algorithm.reset(new OptimizationAlgorithm(ocp));
+  algorithm->set(MAX_NUM_QP_ITERATIONS, 20);
+  algorithm->set(INFEASIBLE_QP_HANDLING, IQH_STOP);
+  algorithm->set( INTEGRATOR_TYPE, INT_RK45);
+  algorithm->set(DISCRETIZATION_TYPE, MULTIPLE_SHOOTING);
+  algorithm->set( HESSIAN_APPROXIMATION, GAUSS_NEWTON);
+  algorithm->set(KKT_TOLERANCE, 1e-5);
 
   Grid timeGrid(ts, te, numSteps+1);
-  VariablesGrid xi(19, timeGrid);
+  VariablesGrid xi(16, timeGrid);
   VariablesGrid ui(6, timeGrid);
 
-  algorithm.initializeDifferentialStates(xi);
-  algorithm.initializeControls(ui);
+  algorithm->initializeDifferentialStates(xi);
+  algorithm->initializeControls(ui);
 
-  std::cout <<"Added optimization scheme" << std::endl;
-  /**
-  * Solve
-  */
-  ros::Time t1 = ros::Time::now();
-  algorithm.solve();
-  /**
-  * Get final results
-  */
-  std::string states_file, controls_file;
-  nh.getParam("states_file", states_file);
-  nh.getParam("controls_file", controls_file);
-  algorithm.getDifferentialStates(states_file.c_str());
-  algorithm.getControls(controls_file.c_str());
+  ROS_INFO("Setup took %f seconds", (ros::Time::now()-t1).toSec());
 
-  algorithm.getDifferentialStates(xi);
-  algorithm.getControls(ui);
+  algorithm->solve();
 
-  ocp.subjectTo(((x0-ox)*(x0-ox) + (y0-oy)*(y0-oy) + (z0-oz)*(z0-oz)) >= ora*ora);
-  ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= ora*ora);
+  algorithm->getDifferentialStates(xi);
+  algorithm->getControls(ui);
 
-  ocp.subjectTo(((eex-ox)*(eex-ox) + (eey-oy)*(eey-oy) + (eez-oz)*(eez-oz)) >= ora*ora);
-  ocp.subjectTo(((eex-ox2)*(eex-ox2) + (eez-oy2)*(eez-oy2) + (eez-oz2)*(eez-oz2)) >= ora*ora);
+  ocp.subjectTo(((x0-cx)*(x0-cx) + (y0-cy)*(y0-cy)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((x0-cx2)*(x0-cx2) + (y0-cy2)*(y0-cy2)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((x0-ox1)*(x0-ox1) + (y0-oy1)*(y0-oy1) + (z0-oz1)*(z0-oz1)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((x0-ox3)*(x0-ox3) + (y0-oy3)*(y0-oy3) + (z0-oz3)*(z0-oz3)) >= (qr+tr)*(qr+tr));
 
-  algorithm.initializeDifferentialStates(xi);
-  algorithm.initializeControls(ui);
+  ocp.subjectTo(((eex-cx)*(eex-cx) + (eey-cy)*(eey-cy)) >= (2*lr+ora)*(2*lr+ora));
+  ocp.subjectTo(((eex-cx2)*(eex-cx2) + (eey-cy2)*(eey-cy2)) >= (2*lr+ora)*(2*lr+ora));
+  ocp.subjectTo(((eex-ox1)*(eex-ox1) + (eey-oy1)*(eey-oy1) + (eez-oz1)*(eez-oz1)) >= (2*lr+tr)*(2*lr+tr));
+  ocp.subjectTo(((eex-ox2)*(eex-ox2) + (eey-oy2)*(eey-oy2) + (eez-oz2)*(eez-oz2)) >= (2*lr+tr)*(2*lr+tr));
+  ocp.subjectTo(((eex-ox3)*(eex-ox3) + (eey-oy3)*(eey-oy3) + (eez-oz3)*(eez-oz3)) >= (2*lr+tr)*(2*lr+tr));
 
-  algorithm.solve();
+  ocp.subjectTo(((p11x-cx)*(p11x-cx) + (p11y-cy)*(p11y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p11x-cx2)*(p11x-cx2) + (p11y-cy2)*(p11y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p11x-ox1)*(p11x-ox1) + (p11y-oy1)*(p11y-oy1) + (p11z-oz1)*(p11z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p11x-ox2)*(p11x-ox2) + (p11y-oy2)*(p11y-oy2) + (p11z-oz2)*(p11z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p11x-ox3)*(p11x-ox3) + (p11y-oy3)*(p11y-oy3) + (p11z-oz3)*(p11z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p12x-cx)*(p12x-cx) + (p12y-cy)*(p12y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p12x-cx2)*(p12x-cx2) + (p12y-cy2)*(p12y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p12x-ox1)*(p12x-ox1) + (p12y-oy1)*(p12y-oy1) + (p12z-oz1)*(p12z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-ox2)*(p12x-ox2) + (p12y-oy2)*(p12y-oy2) + (p12z-oz2)*(p12z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-ox3)*(p12x-ox3) + (p12y-oy3)*(p12y-oy3) + (p12z-oz3)*(p12z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p13x-cx)*(p13x-cx) + (p13y-cy)*(p13y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p13x-cx2)*(p13x-cx2) + (p13y-cy2)*(p13y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p13x-ox1)*(p13x-ox1) + (p13y-oy1)*(p13y-oy1) + (p13z-oz1)*(p13z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p13x-ox2)*(p13x-ox2) + (p13y-oy2)*(p13y-oy2) + (p13z-oz2)*(p13z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p13x-ox3)*(p13x-ox3) + (p13y-oy3)*(p13y-oy3) + (p13z-oz3)*(p13z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p14x-cx2)*(p14x-cx2) + (p14y-cy2)*(p14y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p14x-cx)*(p14x-cx) + (p14y-cy)*(p14y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p14x-ox1)*(p14x-ox1) + (p14y-oy1)*(p14y-oy1) + (p14z-oz1)*(p14z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-ox2)*(p14x-ox2) + (p14y-oy2)*(p14y-oy2) + (p14z-oz2)*(p14z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-ox3)*(p14x-ox3) + (p14y-oy3)*(p14y-oy3) + (p14z-oz3)*(p14z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p21x-cx)*(p21x-cx) + (p21y-cy)*(p21y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p21x-cx2)*(p21x-cx2) + (p21y-cy2)*(p21y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p21x-ox1)*(p21x-ox1) + (p21y-oy1)*(p21y-oy1) + (p21z-oz1)*(p21z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p21x-ox2)*(p21x-ox2) + (p21y-oy2)*(p21y-oy2) + (p21z-oz2)*(p21z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p21x-ox3)*(p21x-ox3) + (p21y-oy3)*(p21y-oy3) + (p21z-oz3)*(p21z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p22x-cx2)*(p22x-cx2) + (p22y-cy2)*(p22y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p22x-cx)*(p22x-cx) + (p22y-cy)*(p22y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p22x-ox1)*(p22x-ox1) + (p22y-oy1)*(p22y-oy1) + (p22z-oz1)*(p22z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-ox2)*(p22x-ox2) + (p22y-oy2)*(p22y-oy2) + (p22z-oz2)*(p22z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-ox3)*(p22x-ox3) + (p22y-oy3)*(p22y-oy3) + (p22z-oz3)*(p22z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p23x-cx)*(p23x-cx) + (p23y-cy)*(p23y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p23x-cx2)*(p23x-cx2) + (p23y-cy2)*(p23y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p23x-ox1)*(p23x-ox1) + (p23y-oy1)*(p23y-oy1) + (p23z-oz1)*(p23z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p23x-ox2)*(p23x-ox2) + (p23y-oy2)*(p23y-oy2) + (p23z-oz2)*(p23z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p23x-ox3)*(p23x-ox3) + (p23y-oy3)*(p23y-oy3) + (p23z-oz3)*(p23z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p24x-cx)*(p24x-cx) + (p24y-cy)*(p24y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p24x-cx2)*(p24x-cx2) + (p24y-cy2)*(p24y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p24x-ox1)*(p24x-ox1) + (p24y-oy1)*(p24y-oy1) + (p24z-oz1)*(p24z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-ox2)*(p24x-ox2) + (p24y-oy2)*(p24y-oy2) + (p24z-oz2)*(p24z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-ox3)*(p24x-ox3) + (p24y-oy3)*(p24y-oy3) + (p24z-oz3)*(p24z-oz3)) >= (lr+tr)*(lr+tr));
+
+  ocp.subjectTo(((p25x-cx)*(p25x-cx) + (p25y-cy)*(p25y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p25x-cx2)*(p25x-cx2) + (p25y-cy2)*(p25y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p25x-ox1)*(p25x-ox1) + (p25y-oy1)*(p25y-oy1) + (p25z-oz1)*(p25z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p25x-ox2)*(p25x-ox2) + (p25y-oy2)*(p25y-oy2) + (p25z-oz2)*(p25z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p25x-ox3)*(p25x-ox3) + (p25y-oy3)*(p25y-oy3) + (p25z-oz3)*(p25z-oz3)) >= (lr+tr)*(lr+tr));
+
+  algorithm.reset(new OptimizationAlgorithm(ocp));
+  algorithm->set(MAX_NUM_QP_ITERATIONS, 50);
+  algorithm->set(INFEASIBLE_QP_HANDLING, IQH_STOP);
+  algorithm->set(INTEGRATOR_TYPE, INT_RK45);
+  algorithm->set(DISCRETIZATION_TYPE, MULTIPLE_SHOOTING);
+  algorithm->set(HESSIAN_APPROXIMATION, GAUSS_NEWTON);
+  algorithm->set(KKT_TOLERANCE, 1e-5);
+
+  algorithm->initializeDifferentialStates(xi);
+  algorithm->initializeControls(ui);
+
+  if(algorithm->solve() != SUCCESSFUL_RETURN) {
+    ROS_WARN("Failed to solve. Exiting...");
+    return 0;
+  }
+
   ROS_INFO("Final OCP took %f seconds to solve", (ros::Time::now()-t1).toSec());
 
-  VariablesGrid states(19, timeGrid);
-  algorithm.getDifferentialStates(states);
+  VariablesGrid states(16, timeGrid);
+  VariablesGrid controls(6, timeGrid);
+  algorithm->getDifferentialStates(states);
+  algorithm->getControls(controls);
   /**
   * Visuaize trajectory in Rviz
   */
@@ -254,91 +403,423 @@ int main(int argc, char** argv) {
   tf::TransformBroadcaster br;
   ros::Publisher jointPub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
   ros::Publisher goalPub = nh.advertise<visualization_msgs::Marker>("/goal_marker", 2);
-  ros::Publisher obsPub = nh.advertise<visualization_msgs::Marker>("/obs_marker", 2);
-  ros::Publisher obsPub2 = nh.advertise<visualization_msgs::Marker>("/obs_marker2", 2);
+  ros::Publisher obsPub = nh.advertise<visualization_msgs::Marker>("/obs_marker", 20);
   ros::Publisher odomPub = nh.advertise<nav_msgs::Odometry>("/odometry",1);
 
-  visualization_msgs::Marker marker;
-  marker.header.frame_id = "world";
-  marker.id = 0;
-  marker.type = visualization_msgs::Marker::CUBE;
-  marker.action = visualization_msgs::Marker::ADD;
-  marker.pose.position.x = goal(0);
-  marker.pose.position.y = goal(1);
-  marker.pose.position.z = goal(2) - 0.0875;
-  marker.pose.orientation.x = 0.0;
-  marker.pose.orientation.y = 0.0;
-  marker.pose.orientation.z = 0.0;
-  marker.pose.orientation.w = 1.0;
-  marker.scale.x = 0.1;
-  marker.scale.y = 0.1;
-  marker.scale.z = 0.1;
-  marker.color.a = 1.0; 
-  marker.color.r = 0.0;
-  marker.color.g = 1.0;
-  marker.color.b = 0.0;
+  visualization_msgs::Marker cage;
+  cage.header.frame_id = "world";
+  cage.id = 0;
+  cage.type = visualization_msgs::Marker::CUBE;
+  cage.action = visualization_msgs::Marker::ADD;
+  cage.pose.position.x = 1.75;
+  cage.pose.position.y = 0.0;
+  cage.pose.position.z = 1.5;
+  cage.pose.orientation.x = 0.0;
+  cage.pose.orientation.y = 0.0;
+  cage.pose.orientation.z = 0.0;
+  cage.pose.orientation.w = 1.0;
+  cage.scale.x = 7.5;
+  cage.scale.y = 4.2;
+  cage.scale.z = 3.0;
+  cage.color.a = 0.2;
+  cage.color.r = 1.0;
+  cage.color.g = 0.0;
+  cage.color.b = 0.0;
+
+  visualization_msgs::Marker quad_body_marker;
+  quad_body_marker.header.frame_id = "baselink";
+  quad_body_marker.id = 1;
+  quad_body_marker.type = visualization_msgs::Marker::SPHERE;
+  quad_body_marker.action = visualization_msgs::Marker::ADD;
+  quad_body_marker.pose.position.x = 0.0;
+  quad_body_marker.pose.position.y = 0.0;
+  quad_body_marker.pose.position.z = 0.0;
+  quad_body_marker.pose.orientation.x = 0.0;
+  quad_body_marker.pose.orientation.y = 0.0;
+  quad_body_marker.pose.orientation.z = 0.0;
+  quad_body_marker.pose.orientation.w = 1.0;
+  quad_body_marker.scale.x = 2*qr;
+  quad_body_marker.scale.y = 2*qr;
+  quad_body_marker.scale.z = 2*qr;
+  quad_body_marker.color.a = 0.05;
+  quad_body_marker.color.r = 0.0;
+  quad_body_marker.color.g = 1.0;
+  quad_body_marker.color.b = 0.0;
+
+  visualization_msgs::Marker goal_marker;
+  goal_marker.header.frame_id = "world";
+  goal_marker.id = 2;
+  goal_marker.type = visualization_msgs::Marker::CUBE;
+  goal_marker.action = visualization_msgs::Marker::ADD;
+  goal_marker.pose.position.x = goal(0);
+  goal_marker.pose.position.y = goal(1);
+  goal_marker.pose.position.z = goal(2);
+  goal_marker.pose.orientation.x = 0.0;
+  goal_marker.pose.orientation.y = 0.0;
+  goal_marker.pose.orientation.z = 0.0;
+  goal_marker.pose.orientation.w = 1.0;
+  goal_marker.scale.x = 0.1;
+  goal_marker.scale.y = 0.1;
+  goal_marker.scale.z = 0.1;
+  goal_marker.color.a = 0.7; 
+  goal_marker.color.r = 0.0;
+  goal_marker.color.g = 1.0;
+  goal_marker.color.b = 0.0;
+
+  visualization_msgs::Marker obs_marker;
+  obs_marker.header.frame_id = "world";
+  obs_marker.id = 3;
+  obs_marker.type = visualization_msgs::Marker::CYLINDER;
+  obs_marker.action = visualization_msgs::Marker::ADD;
+  obs_marker.pose.position.x = cx;
+  obs_marker.pose.position.y = cy;
+  obs_marker.pose.position.z = 1.5;
+  obs_marker.pose.orientation.x = 0.0;
+  obs_marker.pose.orientation.y = 0.0;
+  obs_marker.pose.orientation.z = 0.0;
+  obs_marker.pose.orientation.w = 1.0;
+  obs_marker.scale.x = ora;
+  obs_marker.scale.y = ora;
+  obs_marker.scale.z = 3.0;
+  obs_marker.color.a = 1.0;
+  obs_marker.color.r = 1.0;
+  obs_marker.color.g = 0.0;
+  obs_marker.color.b = 0.0;
+
+
+  visualization_msgs::Marker obs_marker2;
+  obs_marker2.header.frame_id = "world";
+  obs_marker2.id = 17;
+  obs_marker2.type = visualization_msgs::Marker::CYLINDER;
+  obs_marker2.action = visualization_msgs::Marker::ADD;
+  obs_marker2.pose.position.x = cx2;
+  obs_marker2.pose.position.y = cy2;
+  obs_marker2.pose.position.z = 1.5;
+  obs_marker2.pose.orientation.x = 0.0;
+  obs_marker2.pose.orientation.y = 0.0;
+  obs_marker2.pose.orientation.z = 0.0;
+  obs_marker2.pose.orientation.w = 1.0;
+  obs_marker2.scale.x = ora;
+  obs_marker2.scale.y = ora;
+  obs_marker2.scale.z = 3.0;
+  obs_marker2.color.a = 1.0;
+  obs_marker2.color.r = 1.0;
+  obs_marker2.color.g = 0.0;
+  obs_marker2.color.b = 0.0;
+
+  visualization_msgs::Marker marker1;
+  marker1.header.frame_id = "world";
+  marker1.id = 4;
+  marker1.type = visualization_msgs::Marker::SPHERE;
+  marker1.action = visualization_msgs::Marker::ADD;
+  marker1.pose.position.x = ox1;
+  marker1.pose.position.y = oy1;
+  marker1.pose.position.z = oz1;
+  marker1.pose.orientation.x = 0.0;
+  marker1.pose.orientation.y = 0.0;
+  marker1.pose.orientation.z = 0.0;
+  marker1.pose.orientation.w = 1.0;
+  marker1.scale.x = 2*tr;
+  marker1.scale.y = 2*tr;
+  marker1.scale.z = 2*tr;
+  marker1.color.a = 1.0;
+  marker1.color.r = 1.0;
+  marker1.color.g = 0.0;
+  marker1.color.b = 0.0;
 
   visualization_msgs::Marker marker2;
   marker2.header.frame_id = "world";
-  marker2.id = 1;
+  marker2.id = 5;
   marker2.type = visualization_msgs::Marker::SPHERE;
   marker2.action = visualization_msgs::Marker::ADD;
-  marker2.pose.position.x = ox;
-  marker2.pose.position.y = oy;
-  marker2.pose.position.z = oz;
+  marker2.pose.position.x = ox2;
+  marker2.pose.position.y = oy2;
+  marker2.pose.position.z = oz2;
   marker2.pose.orientation.x = 0.0;
   marker2.pose.orientation.y = 0.0;
   marker2.pose.orientation.z = 0.0;
   marker2.pose.orientation.w = 1.0;
-  marker2.scale.x = 0.1;
-  marker2.scale.y = 0.1;
-  marker2.scale.z = 0.1;
-  marker2.color.a = 1.0; 
-  marker2.color.r = 0.0;
-  marker2.color.g = 1.0;
+  marker2.scale.x = 2*tr;
+  marker2.scale.y = 2*tr;
+  marker2.scale.z = 2*tr;
+  marker2.color.a = 1.0;
+  marker2.color.r = 1.0;
+  marker2.color.g = 0.0;
   marker2.color.b = 0.0;
 
   visualization_msgs::Marker marker3;
   marker3.header.frame_id = "world";
-  marker3.id = 1;
+  marker3.id = 6;
   marker3.type = visualization_msgs::Marker::SPHERE;
   marker3.action = visualization_msgs::Marker::ADD;
-  marker3.pose.position.x = ox2;
-  marker3.pose.position.y = oy2;
-  marker3.pose.position.z = oz2;
+  marker3.pose.position.x = ox3;
+  marker3.pose.position.y = oy3;
+  marker3.pose.position.z = oz3;
   marker3.pose.orientation.x = 0.0;
   marker3.pose.orientation.y = 0.0;
   marker3.pose.orientation.z = 0.0;
   marker3.pose.orientation.w = 1.0;
-  marker3.scale.x = 0.1;
-  marker3.scale.y = 0.1;
-  marker3.scale.z = 0.1;
-  marker3.color.a = 1.0; 
-  marker3.color.r = 0.0;
-  marker3.color.g = 1.0;
+  marker3.scale.x = 2*tr;
+  marker3.scale.y = 2*tr;
+  marker3.scale.z = 2*tr;
+  marker3.color.a = 1.0;
+  marker3.color.r = 1.0;
+  marker3.color.g = 0.0;
   marker3.color.b = 0.0;
 
+  visualization_msgs::Marker link1marker1;
+  link1marker1.header.frame_id = "link1";
+  link1marker1.id = 7;
+  link1marker1.type = visualization_msgs::Marker::SPHERE;
+  link1marker1.action = visualization_msgs::Marker::ADD;
+  link1marker1.pose.position.x = 0.0;
+  link1marker1.pose.position.y = 0.0;
+  link1marker1.pose.position.z = l11;
+  link1marker1.pose.orientation.x = 0.0;
+  link1marker1.pose.orientation.y = 0.0;
+  link1marker1.pose.orientation.z = 0.0;
+  link1marker1.pose.orientation.w = 1.0;
+  link1marker1.scale.x = 2*lr;
+  link1marker1.scale.y = 2*lr;
+  link1marker1.scale.z = 2*lr;
+  link1marker1.color.a = 0.5;
+  link1marker1.color.r = 1.0;
+  link1marker1.color.g = 0.0;
+  link1marker1.color.b = 0.0;
+
+  visualization_msgs::Marker link1marker2;
+  link1marker2.header.frame_id = "link1";
+  link1marker2.id = 8;
+  link1marker2.type = visualization_msgs::Marker::SPHERE;
+  link1marker2.action = visualization_msgs::Marker::ADD;
+  link1marker2.pose.position.x = 0.0;
+  link1marker2.pose.position.y = 0.0;
+  link1marker2.pose.position.z = l12;
+  link1marker2.pose.orientation.x = 0.0;
+  link1marker2.pose.orientation.y = 0.0;
+  link1marker2.pose.orientation.z = 0.0;
+  link1marker2.pose.orientation.w = 1.0;
+  link1marker2.scale.x = 2*lr;
+  link1marker2.scale.y = 2*lr;
+  link1marker2.scale.z = 2*lr;
+  link1marker2.color.a = 0.5;
+  link1marker2.color.r = 1.0;
+  link1marker2.color.g = 0.0;
+  link1marker2.color.b = 0.0;
+
+  visualization_msgs::Marker link1marker3;
+  link1marker3.header.frame_id = "link1";
+  link1marker3.id = 9;
+  link1marker3.type = visualization_msgs::Marker::SPHERE;
+  link1marker3.action = visualization_msgs::Marker::ADD;
+  link1marker3.pose.position.x = 0.0;
+  link1marker3.pose.position.y = 0.0;
+  link1marker3.pose.position.z = l13;
+  link1marker3.pose.orientation.x = 0.0;
+  link1marker3.pose.orientation.y = 0.0;
+  link1marker3.pose.orientation.z = 0.0;
+  link1marker3.pose.orientation.w = 1.0;
+  link1marker3.scale.x = 2*lr;
+  link1marker3.scale.y = 2*lr;
+  link1marker3.scale.z = 2*lr;
+  link1marker3.color.a = 0.5;
+  link1marker3.color.r = 1.0;
+  link1marker3.color.g = 0.0;
+  link1marker3.color.b = 0.0;
+
+  visualization_msgs::Marker link1marker4;
+  link1marker4.header.frame_id = "link1";
+  link1marker4.id = 10;
+  link1marker4.type = visualization_msgs::Marker::SPHERE;
+  link1marker4.action = visualization_msgs::Marker::ADD;
+  link1marker4.pose.position.x = 0.0;
+  link1marker4.pose.position.y = 0.0;
+  link1marker4.pose.position.z = l14;
+  link1marker4.pose.orientation.x = 0.0;
+  link1marker4.pose.orientation.y = 0.0;
+  link1marker4.pose.orientation.z = 0.0;
+  link1marker4.pose.orientation.w = 1.0;
+  link1marker4.scale.x = 2*lr;
+  link1marker4.scale.y = 2*lr;
+  link1marker4.scale.z = 2*lr;
+  link1marker4.color.a = 0.5;
+  link1marker4.color.r = 1.0;
+  link1marker4.color.g = 0.0;
+  link1marker4.color.b = 0.0;
+
+  visualization_msgs::Marker link2marker1;
+  link2marker1.header.frame_id = "link2";
+  link2marker1.id = 11;
+  link2marker1.type = visualization_msgs::Marker::SPHERE;
+  link2marker1.action = visualization_msgs::Marker::ADD;
+  link2marker1.pose.position.x = 0.0;
+  link2marker1.pose.position.y = 0.0;
+  link2marker1.pose.position.z = l21;
+  link2marker1.pose.orientation.x = 0.0;
+  link2marker1.pose.orientation.y = 0.0;
+  link2marker1.pose.orientation.z = 0.0;
+  link2marker1.pose.orientation.w = 1.0;
+  link2marker1.scale.x = 2*lr;
+  link2marker1.scale.y = 2*lr;
+  link2marker1.scale.z = 2*lr;
+  link2marker1.color.a = 0.5;
+  link2marker1.color.r = 1.0;
+  link2marker1.color.g = 0.0;
+  link2marker1.color.b = 0.0;
+
+  visualization_msgs::Marker link2marker2;
+  link2marker2.header.frame_id = "link2";
+  link2marker2.id = 12;
+  link2marker2.type = visualization_msgs::Marker::SPHERE;
+  link2marker2.action = visualization_msgs::Marker::ADD;
+  link2marker2.pose.position.x = 0.0;
+  link2marker2.pose.position.y = 0.0;
+  link2marker2.pose.position.z = l22;
+  link2marker2.pose.orientation.x = 0.0;
+  link2marker2.pose.orientation.y = 0.0;
+  link2marker2.pose.orientation.z = 0.0;
+  link2marker2.pose.orientation.w = 1.0;
+  link2marker2.scale.x = 2*lr;
+  link2marker2.scale.y = 2*lr;
+  link2marker2.scale.z = 2*lr;
+  link2marker2.color.a = 0.5;
+  link2marker2.color.r = 1.0;
+  link2marker2.color.g = 0.0;
+  link2marker2.color.b = 0.0;
+
+  visualization_msgs::Marker link2marker3;
+  link2marker3.header.frame_id = "link2";
+  link2marker3.id = 13;
+  link2marker3.type = visualization_msgs::Marker::SPHERE;
+  link2marker3.action = visualization_msgs::Marker::ADD;
+  link2marker3.pose.position.x = 0.0;
+  link2marker3.pose.position.y = 0.0;
+  link2marker3.pose.position.z = l23;
+  link2marker3.pose.orientation.x = 0.0;
+  link2marker3.pose.orientation.y = 0.0;
+  link2marker3.pose.orientation.z = 0.0;
+  link2marker3.pose.orientation.w = 1.0;
+  link2marker3.scale.x = 2*lr;
+  link2marker3.scale.y = 2*lr;
+  link2marker3.scale.z = 2*lr;
+  link2marker3.color.a = 0.5;
+  link2marker3.color.r = 1.0;
+  link2marker3.color.g = 0.0;
+  link2marker3.color.b = 0.0;
+
+  visualization_msgs::Marker link2marker4;
+  link2marker4.header.frame_id = "link2";
+  link2marker4.id = 14;
+  link2marker4.type = visualization_msgs::Marker::SPHERE;
+  link2marker4.action = visualization_msgs::Marker::ADD;
+  link2marker4.pose.position.x = 0.0;
+  link2marker4.pose.position.y = 0.0;
+  link2marker4.pose.position.z = l24;
+  link2marker4.pose.orientation.x = 0.0;
+  link2marker4.pose.orientation.y = 0.0;
+  link2marker4.pose.orientation.z = 0.0;
+  link2marker4.pose.orientation.w = 1.0;
+  link2marker4.scale.x = 2*lr;
+  link2marker4.scale.y = 2*lr;
+  link2marker4.scale.z = 2*lr;
+  link2marker4.color.a = 0.5;
+  link2marker4.color.r = 1.0;
+  link2marker4.color.g = 0.0;
+  link2marker4.color.b = 0.0;
+
+  visualization_msgs::Marker link2marker5;
+  link2marker5.header.frame_id = "link2";
+  link2marker5.id = 15;
+  link2marker5.type = visualization_msgs::Marker::SPHERE;
+  link2marker5.action = visualization_msgs::Marker::ADD;
+  link2marker5.pose.position.x = 0.0;
+  link2marker5.pose.position.y = 0.0;
+  link2marker5.pose.position.z = l25;
+  link2marker5.pose.orientation.x = 0.0;
+  link2marker5.pose.orientation.y = 0.0;
+  link2marker5.pose.orientation.z = 0.0;
+  link2marker5.pose.orientation.w = 1.0;
+  link2marker5.scale.x = 2*lr;
+  link2marker5.scale.y = 2*lr;
+  link2marker5.scale.z = 2*lr;
+  link2marker5.color.a = 0.5;
+  link2marker5.color.r = 1.0;
+  link2marker5.color.g = 0.0;
+  link2marker5.color.b = 0.0;
+
+
+  visualization_msgs::Marker eemarker;
+  eemarker.header.frame_id = "link2";
+  eemarker.id = 16;
+  eemarker.type = visualization_msgs::Marker::SPHERE;
+  eemarker.action = visualization_msgs::Marker::ADD;
+  eemarker.pose.position.x = 0.0;
+  eemarker.pose.position.y = 0.0;
+  eemarker.pose.position.z = l2;
+  eemarker.pose.orientation.x = 0.0;
+  eemarker.pose.orientation.y = 0.0;
+  eemarker.pose.orientation.z = 0.0;
+  eemarker.pose.orientation.w = 1.0;
+  eemarker.scale.x = 4*lr;
+  eemarker.scale.y = 4*lr;
+  eemarker.scale.z = 4*lr;
+  eemarker.color.a = 0.5;
+  eemarker.color.r = 1.0;
+  eemarker.color.g = 0.0;
+  eemarker.color.b = 0.0;
+
+  tf::TransformListener listener;
+  // ros::Duration(5.0).sleep();
+  ros::Time start_time = ros::Time::now();
   for(int tt=0; tt < numSteps+1; tt++) {
 
     double x = states(tt,0); double y = states(tt,1); double z = states(tt,2);
     double xdd = states(tt,6); double ydd = states(tt,7); double zdd = states(tt,8);
-    double yaw = states(tt,12); double j1 = states(tt,14); double j2 = states(tt,15);
-    double ex = x + (l1*cos(j1) + l2*cos(j1+j2))*cos(yaw);
-    double ey = y + (l1*cos(j1) + l2*cos(j1+j2))*sin(yaw);
-    double ez = z + l1*sin(j1) + l2*sin(j1+j2);
+    double vx = states(tt,3); double vy = states(tt,4); double vz = states(tt,5);
+    double yaw = states(tt,12); double yaw_rate = states(tt,13);
+    double j1 = states(tt,14); double j2 = states(tt,15);
+
     double T = sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81));
     double r = asin((-xdd*sin(yaw) + ydd*cos(yaw))/T);
     double p = atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81));
 
     tf::Transform transform = tf::Transform(
-     tf::createQuaternionFromRPY(r,p,states(tt, 12)), 
+     tf::createQuaternionFromRPY(0,0,states(tt, 12)), 
      tf::Vector3(states(tt, 0), states(tt, 1), states(tt, 2)));
 
+    // states_log << (double)tt/10.0 <<" ";
+    for(int xx=0; xx < 16; xx++) states_log << states(tt, xx) <<" ";
+    states_log << "\n";
+
+    for(int uu=0; uu < 6; uu++) controls_log << controls(tt, uu) <<" ";
+    controls_log << "\n";
+
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "baselink"));
-    marker.header.stamp = ros::Time::now();
-    goalPub.publish(marker);
+
+    // ROS_INFO("Thrust = %f", T);
+
+    double exp_x = x + (sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(yaw) + cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*cos(yaw)*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(yaw)*(l2*cos(j1 + j2) + l1*cos(j1));
+    double exp_y = y + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw)*(l2*cos(j1 + j2) + l1*cos(j1)) - (cos(yaw)*sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81)))) - cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw))*(l2*sin(j1 + j2) + l1*sin(j1));
+    double exp_z = z + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) - sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*(l2*cos(j1 + j2) + l1*cos(j1));
+
+    goalPub.publish(goal_marker);
+    goalPub.publish(cage);
+    goalPub.publish(quad_body_marker);
+    obsPub.publish(link2marker1);
+    obsPub.publish(link2marker2);
+    obsPub.publish(link2marker3);
+    obsPub.publish(link2marker4);
+    obsPub.publish(obs_marker);
+    obsPub.publish(obs_marker2);
+    obsPub.publish(marker1);
     obsPub.publish(marker2);
-    obsPub2.publish(marker3);
+    obsPub.publish(marker3);
+    obsPub.publish(link1marker1);
+    obsPub.publish(link1marker2);
+    obsPub.publish(link1marker3);
+    obsPub.publish(link1marker4);
+    obsPub.publish(link2marker5);
+    obsPub.publish(eemarker);
 
     sensor_msgs::JointState joint_state;
     joint_state.name.push_back("airbasetolink1");

@@ -5,7 +5,7 @@
   <param name="wFile" type="string" value="$(find opam)/config/W.txt"/>
   <param name="qFile" type="string" value="$(find opam)/config/Q2.txt"/>
 
-  <rosparam command="load" file="$(find opam)/config/params.yaml"/>
+  <rosparam command="load" file="$(find opam)/config/place_params.yaml"/>
 
   <node type="quad" pkg="opam" name="quad" output="screen"/>
 

@@ -1,14 +1,14 @@
-quad_x0: 0.0
-quad_y0: 0.8
-quad_z0: 1.5
+quad_x0: 2.25
+quad_y0: 0.0
+quad_z0: 0.6
 quad_ga0: 0.0
 
-arm_q1: -1.57
-arm_q2: 1.57
+arm_q1: -0.0
+arm_q2: 0.0
 
 goal_x: 3.0
 goal_y: 0.0
-goal_z: 0.6
+goal_z: 1.4
 
 cyl_obs_x: 1.5
 cyl_obs_y: 0.7
@@ -18,15 +18,15 @@ cyl_obs_y2: -0.7
 
 table_obs1_x: 3.0
 table_obs1_y: -0.2
-table_obs1_z: 0.25
+table_obs1_z: 1.0
 
 table_obs2_x: 3.0
 table_obs2_y: 0.0
-table_obs2_z: 0.25
+table_obs2_z: 1.0
 
 table_obs3_x: 3.0
 table_obs3_y: 0.2
-table_obs3_z: 0.25
+table_obs3_z: 1.0
 
 link_r: 0.03
 quad_r: 0.55
@@ -36,7 +36,7 @@ table_w: 0.5
 table_h: 0.25
 obs_r: 0.05
 
-te: 5.0
+te: 2.0
 te1: 5.0
 te2: 2.0
 numSteps: 20

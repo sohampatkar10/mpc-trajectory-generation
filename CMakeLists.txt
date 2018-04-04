@@ -147,6 +147,7 @@ add_executable(quad src/quad.cpp)
 add_executable(quad_code_gen src/quad_code_gen.cpp)
 add_executable(quad_arm_code_gen src/quad_arm_code_gen.cpp)
 add_executable(quad_arm_sim src/quad_arm_sim.cpp)
+add_executable(controller_test src/controller_test.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -197,6 +198,10 @@ target_link_libraries(quad_arm_code_gen
    ${ACADO_SHARED_LIBRARIES}
 )
 
+target_link_libraries(controller_test
+   ${catkin_LIBRARIES}
+   ${ACADO_SHARED_LIBRARIES}
+)
 target_link_libraries(quad_arm_sim
    ${PROJECT_SOURCE_DIR}/lib/libacado_exported_rti.a
    ${catkin_LIBRARIES}
