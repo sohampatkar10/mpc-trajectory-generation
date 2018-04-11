@@ -36,5 +36,5 @@ table_w: 0.5
 table_h: 0.25
 obs_r: 0.05
 
-te: 2.0
-numSteps: 10
+te: 3.0
+numSteps: 15

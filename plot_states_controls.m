@@ -57,21 +57,25 @@ for i=1:size(x,1)
     wxd(i) = (-m*Ry'*[sx(i);sy(i);sz(i)] - wy(i)*wz(i)*T + 2*wx(i)*Td)/T;
     wyd(i) = (-m*Ry'*[sx(i);sy(i);sz(i)] - wx(i)*wz(i)*T - 2*wy(i)*Td)/T;
     
-    tau = J*[wxd(i);wyd(i);wzd(i)] - cross(J*[wx(i);wy(i);wz(i)], [wx(i);wy(i);wz(i)]);
+    tau = J*[wxd(i);wyd(i);wzd(i)] - cross(J*[wx(i);wy(i);wz(i)], [wx(i);wy(i);wz(i)]); 
     Tx(i) = tau(1); Ty(i) = tau(2); Tz = tau(3);
 end
 
-t = 0:(5/20):5;
+t = 0:(3/15):3;
 
-% figure
-% subplot(3,1,1)
-% plot(t,wx*180/pi,'o')
-% subplot(3,1,2)
-% plot(t,wy*180/pi,'o')
-% subplot(3,1,3)
-% plot(t,wz*180/pi,'o')
-% suptitle('angular velocities')
-% plot(t, p*180/pi,'r')
+figure
+subplot(2,1,1)
+plot(t,wx,'o')
+subplot(2,1,2)
+plot(t,wy,'o')
+suptitle('angular velocities')
+
+figure
+subplot(2,1,1)
+plot(t,r,'r')
+subplot(2,1,2)
+plot(t,p,'r')
+suptitle('angular velocities')
 
 % 
 % figure
@@ -122,11 +126,11 @@ t = 0:(5/20):5;
 % plot(t,qd2)
 % suptitle('Joint Velocities')
 % 
-figure
-subplot(3,1,1)
-plot(t,sx,'o')
-subplot(3,1,2)
-plot(t,sy,'o')
-subplot(3,1,3)
-plot(t,sz,'o')
-suptitle('Quad Snap')
+% figure
+% subplot(3,1,1)
+% plot(t,sx,'o')
+% subplot(3,1,2)
+% plot(t,sy,'o')
+% subplot(3,1,3)
+% plot(t,sz,'o')
+% suptitle('Quad Snap')
