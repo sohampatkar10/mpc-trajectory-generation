@@ -29,7 +29,7 @@ table_obs3_y: 0.2
 table_obs3_z: 1.0
 
 link_r: 0.03
-quad_r: 0.55
+quad_r: 0.275
 table_r: 0.25
 table_l: 0.25
 table_w: 0.5
@@ -37,6 +37,4 @@ table_h: 0.25
 obs_r: 0.05
 
 te: 2.0
-te1: 5.0
-te2: 2.0
-numSteps: 20
+numSteps: 10

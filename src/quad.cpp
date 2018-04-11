@@ -63,6 +63,11 @@ int main(int argc, char** argv) {
 
   IntermediateState eex, eey, eez, T, r, p;
 
+  IntermediateState pq1x, pq1y, pq1z;
+  IntermediateState pq2x, pq2y, pq2z;
+  IntermediateState pq3x, pq3y, pq3z;
+  IntermediateState pq4x, pq4y, pq4z;
+
   IntermediateState p11x, p11y, p11z;
   IntermediateState p12x, p12y, p12z;
   IntermediateState p13x, p13y, p13z;
@@ -86,7 +91,14 @@ int main(int argc, char** argv) {
   double l23 = 5.0*lr; double l24 = 7.0*lr;
   double l25 = 9.0*lr;
 
-  Control x4, y4, z4, ga2, qd1, qd2;
+  Control x4, y4, z4, ga2;
+  Control qd1, qd2;
+  // Control qdd1, qdd2;
+  // Parameter mq1, mq2, cq1, cq2;
+  // IntermediateState qd1, qd2;
+  // qd1 = mq1*qdd1 + cq1;
+  // qd2 = mq2*qdd2 + cq2;
+
   double ts = 0.0;
   double te; nh.getParam("te", te);
   int numSteps; nh.getParam("numSteps", numSteps);
@@ -121,6 +133,24 @@ int main(int argc, char** argv) {
   T = sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
   r = asin((-x2*sin(ga0) + y2*cos(ga0))/T);
   p = atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81));
+
+  double qr;  nh.getParam("quad_r", qr);
+
+  pq1x = x0 + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))));
+  pq1y = y0 + qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0);
+  pq1z = z0 + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - qr*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)));
+
+  pq2x = x0 + qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0);
+  pq2y = y0 + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0) - qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0));
+  pq2z = z0 - qr*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) - qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))));
+
+  pq3x = x0 + qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) - qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0);
+  pq3y = y0 - qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0);
+  pq3z = z0 + qr*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) - qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))));
+
+  pq4x = x0 - qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) - qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0);
+  pq4y = y0 + qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0);
+  pq4z = z0 + qr*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))));
 
   eex =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l2*cos(q1 + q2) + l1*cos(q1));
   eey =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l2*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1));
@@ -162,6 +192,12 @@ int main(int argc, char** argv) {
   p25y =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l25*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l25*sin(q1 + q2) + l1*sin(q1));
   p25z =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l25*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l25*cos(q1 + q2) + l1*cos(q1));
 
+  IntermediateState tauX, tauY, tauZ;
+  double xq = 2*qr; double yq = 2*qr; double zq = 0.2; double m = 1.0/0.15;
+  tauX = (ga1*m*(x3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - z3*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + y3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*zq*zq)/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)) - (m*xq*xq*(ga1*(x3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - z3*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + y3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)) + (2*(y3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - x3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))))*(m*x3*(sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))) - m*y3*(cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)) + m*z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)) - m*x4*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + m*y4*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) + m*z4*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)) - (ga1*m*yq*yq*(x3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - z3*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + y3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
+  tauY = (ga1*m*(y3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - x3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))))*zq*zq)/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)) - (m*yq*yq*((2*(x3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - z3*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + y3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(m*x3*(sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))) - m*y3*(cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)) + m*z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)) - ga1*(y3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - x3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) - m*x4*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + m*y4*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) + m*z4*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)) - (ga1*m*xq*xq*(y3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - x3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
+  tauZ = ga2*m*zq*zq + (m*xq*xq*(x3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - z3*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + y3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(y3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - x3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))))/(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)) - (m*yq*yq*(x3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - z3*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + y3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(y3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - x3*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))) + z3*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))))/(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
+
   std::cout <<"Added Dynamics" << std::endl;
   /**
   * Cost along trajectory
@@ -172,7 +208,7 @@ int main(int argc, char** argv) {
   */
   DMatrix Q(6, 6); Q.setIdentity();
   // Q(4,4) = 0.01; Q(5,5) = 0.01;
-  Q *= 0.01; 
+  Q *= 0.01;
   Q(3,3) = 1.0;
   DVector offset(6); offset.setAll(0.0);
   Function eta;
@@ -204,7 +240,7 @@ int main(int argc, char** argv) {
         ox1, oy1, oz1,
         ox2, oy2, oz2,
         ox3, oy3, oz3,
-        qr, tr, ora;
+        tr, ora;
 
   nh.getParam("quad_x0", start_x);
   nh.getParam("quad_y0", start_y);
@@ -219,7 +255,6 @@ int main(int argc, char** argv) {
   nh.getParam("table_obs1_x", ox1); nh.getParam("table_obs1_y", oy1); nh.getParam("table_obs1_z", oz1);
   nh.getParam("table_obs2_x", ox2); nh.getParam("table_obs2_y", oy2); nh.getParam("table_obs2_z", oz2);
   nh.getParam("table_obs3_x", ox3); nh.getParam("table_obs3_y", oy3); nh.getParam("table_obs3_z", oz3);
-  nh.getParam("quad_r", qr);
   nh.getParam("table_r", tr);
   nh.getParam("obs_r", ora);
 
@@ -255,9 +290,12 @@ int main(int argc, char** argv) {
   ocp.subjectTo(-1.0 <= z1 <= 1.0);
   ocp.subjectTo(-1.0 <= ga1 <= 1.0);
 
-  ocp.subjectTo(-0.5 <= r <= 0.5);
-  ocp.subjectTo(-0.5 <= p <= 0.5);
+  // ocp.subjectTo(-0.5 <= r <= 0.5);
+  // ocp.subjectTo(-0.5 <= p <= 0.5);
   ocp.subjectTo(T <= 12.0);
+  // ocp.subjectTo(-10.0 <= tauX <= 10.0);
+  // ocp.subjectTo(-10.0 <= tauY <= 10.0);
+  // ocp.subjectTo(-10.0 <= tauZ <= 10.0) ;
 
   ocp.subjectTo(AT_END, x1 == 0.0);
   ocp.subjectTo(AT_END, y1 == 0.0);
@@ -308,11 +346,29 @@ int main(int argc, char** argv) {
   algorithm->getDifferentialStates(xi);
   algorithm->getControls(ui);
 
-  ocp.subjectTo(((x0-cx)*(x0-cx) + (y0-cy)*(y0-cy)) >= (ora+qr)*(ora+qr));
-  ocp.subjectTo(((x0-cx2)*(x0-cx2) + (y0-cy2)*(y0-cy2)) >= (ora+qr)*(ora+qr));
-  ocp.subjectTo(((x0-ox1)*(x0-ox1) + (y0-oy1)*(y0-oy1) + (z0-oz1)*(z0-oz1)) >= (qr+tr)*(qr+tr));
-  ocp.subjectTo(((x0-ox2)*(x0-ox2) + (y0-oy2)*(y0-oy2) + (z0-oz2)*(z0-oz2)) >= (qr+tr)*(qr+tr));
-  ocp.subjectTo(((x0-ox3)*(x0-ox3) + (y0-oy3)*(y0-oy3) + (z0-oz3)*(z0-oz3)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq1x-cx)*(pq1x-cx) + (pq1y-cy)*(pq1y-cy)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq1x-cx2)*(pq1x-cx2) + (pq1y-cy2)*(pq1y-cy2)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq1x-ox1)*(pq1x-ox1) + (pq1y-oy1)*(pq1y-oy1) + (pq1z-oz1)*(pq1z-oz1)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq1x-ox2)*(pq1x-ox2) + (pq1y-oy2)*(pq1y-oy2) + (pq1z-oz2)*(pq1z-oz2)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq1x-ox3)*(pq1x-ox3) + (pq1y-oy3)*(pq1y-oy3) + (pq1z-oz3)*(pq1z-oz3)) >= (qr+tr)*(qr+tr));
+
+  ocp.subjectTo(((pq2x-cx)*(pq2x-cx) + (pq2y-cy)*(pq2y-cy)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq2x-cx2)*(pq2x-cx2) + (pq2y-cy2)*(pq2y-cy2)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq2x-ox1)*(pq2x-ox1) + (pq2y-oy1)*(pq2y-oy1) + (pq2z-oz1)*(pq2z-oz1)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq2x-ox2)*(pq2x-ox2) + (pq2y-oy2)*(pq2y-oy2) + (pq2z-oz2)*(pq2z-oz2)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq2x-ox3)*(pq2x-ox3) + (pq2y-oy3)*(pq2y-oy3) + (pq2z-oz3)*(pq2z-oz3)) >= (qr+tr)*(qr+tr));
+
+  ocp.subjectTo(((pq3x-cx)*(pq3x-cx) + (pq3y-cy)*(pq3y-cy)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq3x-cx2)*(pq3x-cx2) + (pq3y-cy2)*(pq3y-cy2)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq3x-ox1)*(pq3x-ox1) + (pq3y-oy1)*(pq3y-oy1) + (pq3z-oz1)*(pq3z-oz1)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq3x-ox2)*(pq3x-ox2) + (pq3y-oy2)*(pq3y-oy2) + (pq3z-oz2)*(pq3z-oz2)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq3x-ox3)*(pq3x-ox3) + (pq3y-oy3)*(pq3y-oy3) + (pq3z-oz3)*(pq3z-oz3)) >= (qr+tr)*(qr+tr));
+
+  ocp.subjectTo(((pq4x-cx)*(pq4x-cx) + (pq4y-cy)*(pq4y-cy)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq4x-cx2)*(pq4x-cx2) + (pq4y-cy2)*(pq4y-cy2)) >= (ora+qr)*(ora+qr));
+  ocp.subjectTo(((pq4x-ox1)*(pq4x-ox1) + (pq4y-oy1)*(pq4y-oy1) + (pq4z-oz1)*(pq4z-oz1)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq4x-ox2)*(pq4x-ox2) + (pq4y-oy2)*(pq4y-oy2) + (pq4z-oz2)*(pq4z-oz2)) >= (qr+tr)*(qr+tr));
+  ocp.subjectTo(((pq4x-ox3)*(pq4x-ox3) + (pq4y-oy3)*(pq4y-oy3) + (pq4z-oz3)*(pq4z-oz3)) >= (qr+tr)*(qr+tr));
 
   ocp.subjectTo(((eex-cx)*(eex-cx) + (eey-cy)*(eey-cy)) >= (2*lr+ora)*(2*lr+ora));
   ocp.subjectTo(((eex-cx2)*(eex-cx2) + (eey-cy2)*(eey-cy2)) >= (2*lr+ora)*(2*lr+ora));
@@ -375,12 +431,14 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p25x-ox3)*(p25x-ox3) + (p25y-oy3)*(p25y-oy3) + (p25z-oz3)*(p25z-oz3)) >= (lr+tr)*(lr+tr));
 
   algorithm.reset(new OptimizationAlgorithm(ocp));
-  algorithm->set(MAX_NUM_QP_ITERATIONS, 50);
+  algorithm->set(MAX_NUM_QP_ITERATIONS, 20);
   algorithm->set(INFEASIBLE_QP_HANDLING, IQH_STOP);
   algorithm->set(INTEGRATOR_TYPE, INT_RK45);
   algorithm->set(DISCRETIZATION_TYPE, MULTIPLE_SHOOTING);
   algorithm->set(HESSIAN_APPROXIMATION, GAUSS_NEWTON);
   algorithm->set(KKT_TOLERANCE, 1e-5);
+
+  ROS_INFO("Number of parameters = %i", algorithm->getNP());
 
   algorithm->initializeDifferentialStates(xi);
   algorithm->initializeControls(ui);
@@ -394,15 +452,23 @@ int main(int argc, char** argv) {
 
   VariablesGrid states(16, timeGrid);
   VariablesGrid controls(6, timeGrid);
+  DVector params(4); 
   algorithm->getDifferentialStates(states);
   algorithm->getControls(controls);
+  algorithm->getParameters(params);
+  double m1 = params(0);
+  double m2 = params(1);
+  double c1 = params(2);
+  double c2 = params(3);
+  ROS_INFO("Parameters : %f %f %f %f", m1, m2, c1, c2);
   /**
   * Visuaize trajectory in Rviz
   */
-  ros::Duration(0.5).sleep();
+  ros::Duration(2.0).sleep();
   tf::TransformBroadcaster br;
   ros::Publisher jointPub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
   ros::Publisher goalPub = nh.advertise<visualization_msgs::Marker>("/goal_marker", 2);
+  ros::Publisher quadPub = nh.advertise<visualization_msgs::Marker>("/quad_marker", 5);
   ros::Publisher obsPub = nh.advertise<visualization_msgs::Marker>("/obs_marker", 20);
   ros::Publisher odomPub = nh.advertise<nav_msgs::Odometry>("/odometry",1);
 
@@ -426,25 +492,85 @@ int main(int argc, char** argv) {
   cage.color.g = 0.0;
   cage.color.b = 0.0;
 
-  visualization_msgs::Marker quad_body_marker;
-  quad_body_marker.header.frame_id = "baselink";
-  quad_body_marker.id = 1;
-  quad_body_marker.type = visualization_msgs::Marker::SPHERE;
-  quad_body_marker.action = visualization_msgs::Marker::ADD;
-  quad_body_marker.pose.position.x = 0.0;
-  quad_body_marker.pose.position.y = 0.0;
-  quad_body_marker.pose.position.z = 0.0;
-  quad_body_marker.pose.orientation.x = 0.0;
-  quad_body_marker.pose.orientation.y = 0.0;
-  quad_body_marker.pose.orientation.z = 0.0;
-  quad_body_marker.pose.orientation.w = 1.0;
-  quad_body_marker.scale.x = 2*qr;
-  quad_body_marker.scale.y = 2*qr;
-  quad_body_marker.scale.z = 2*qr;
-  quad_body_marker.color.a = 0.05;
-  quad_body_marker.color.r = 0.0;
-  quad_body_marker.color.g = 1.0;
-  quad_body_marker.color.b = 0.0;
+  visualization_msgs::Marker quad_body_marker1;
+  quad_body_marker1.header.frame_id = "baselink";
+  quad_body_marker1.id = 18;
+  quad_body_marker1.type = visualization_msgs::Marker::SPHERE;
+  quad_body_marker1.action = visualization_msgs::Marker::ADD;
+  quad_body_marker1.pose.position.x = qr;
+  quad_body_marker1.pose.position.y = qr;
+  quad_body_marker1.pose.position.z = 0.0;
+  quad_body_marker1.pose.orientation.x = 0.0;
+  quad_body_marker1.pose.orientation.y = 0.0;
+  quad_body_marker1.pose.orientation.z = 0.0;
+  quad_body_marker1.pose.orientation.w = 1.0;
+  quad_body_marker1.scale.x = 2*qr;
+  quad_body_marker1.scale.y = 2*qr;
+  quad_body_marker1.scale.z = 2*qr;
+  quad_body_marker1.color.a = 0.1;
+  quad_body_marker1.color.r = 0.0;
+  quad_body_marker1.color.g = 0.0;
+  quad_body_marker1.color.b = 1.0;
+
+  visualization_msgs::Marker quad_body_marker2;
+  quad_body_marker2.header.frame_id = "baselink";
+  quad_body_marker2.id = 19;
+  quad_body_marker2.type = visualization_msgs::Marker::SPHERE;
+  quad_body_marker2.action = visualization_msgs::Marker::ADD;
+  quad_body_marker2.pose.position.x = -qr;
+  quad_body_marker2.pose.position.y = qr;
+  quad_body_marker2.pose.position.z = 0.0;
+  quad_body_marker2.pose.orientation.x = 0.0;
+  quad_body_marker2.pose.orientation.y = 0.0;
+  quad_body_marker2.pose.orientation.z = 0.0;
+  quad_body_marker2.pose.orientation.w = 1.0;
+  quad_body_marker2.scale.x = 2*qr;
+  quad_body_marker2.scale.y = 2*qr;
+  quad_body_marker2.scale.z = 2*qr;
+  quad_body_marker2.color.a = 0.1;
+  quad_body_marker2.color.r = 0.0;
+  quad_body_marker2.color.g = 0.0;
+  quad_body_marker2.color.b = 1.0;
+
+  visualization_msgs::Marker quad_body_marker3;
+  quad_body_marker3.header.frame_id = "baselink";
+  quad_body_marker3.id = 20;
+  quad_body_marker3.type = visualization_msgs::Marker::SPHERE;
+  quad_body_marker3.action = visualization_msgs::Marker::ADD;
+  quad_body_marker3.pose.position.x = -qr;
+  quad_body_marker3.pose.position.y = -qr;
+  quad_body_marker3.pose.position.z = 0.0;
+  quad_body_marker3.pose.orientation.x = 0.0;
+  quad_body_marker3.pose.orientation.y = 0.0;
+  quad_body_marker3.pose.orientation.z = 0.0;
+  quad_body_marker3.pose.orientation.w = 1.0;
+  quad_body_marker3.scale.x = 2*qr;
+  quad_body_marker3.scale.y = 2*qr;
+  quad_body_marker3.scale.z = 2*qr;
+  quad_body_marker3.color.a = 0.1;
+  quad_body_marker3.color.r = 0.0;
+  quad_body_marker3.color.g = 0.0;
+  quad_body_marker3.color.b = 1.0;
+
+  visualization_msgs::Marker quad_body_marker4;
+  quad_body_marker4.header.frame_id = "baselink";
+  quad_body_marker4.id = 21;
+  quad_body_marker4.type = visualization_msgs::Marker::SPHERE;
+  quad_body_marker4.action = visualization_msgs::Marker::ADD;
+  quad_body_marker4.pose.position.x = qr;
+  quad_body_marker4.pose.position.y = -qr;
+  quad_body_marker4.pose.position.z = 0.0;
+  quad_body_marker4.pose.orientation.x = 0.0;
+  quad_body_marker4.pose.orientation.y = 0.0;
+  quad_body_marker4.pose.orientation.z = 0.0;
+  quad_body_marker4.pose.orientation.w = 1.0;
+  quad_body_marker4.scale.x = 2*qr;
+  quad_body_marker4.scale.y = 2*qr;
+  quad_body_marker4.scale.z = 2*qr;
+  quad_body_marker4.color.a = 0.1;
+  quad_body_marker4.color.r = 0.0;
+  quad_body_marker4.color.g = 0.0;
+  quad_body_marker4.color.b = 1.0;
 
   visualization_msgs::Marker goal_marker;
   goal_marker.header.frame_id = "world";
@@ -769,7 +895,7 @@ int main(int argc, char** argv) {
   eemarker.color.b = 0.0;
 
   tf::TransformListener listener;
-  // ros::Duration(5.0).sleep();
+  ros::Duration(0.5).sleep();
   ros::Time start_time = ros::Time::now();
   for(int tt=0; tt < numSteps+1; tt++) {
 
@@ -777,7 +903,8 @@ int main(int argc, char** argv) {
     double xdd = states(tt,6); double ydd = states(tt,7); double zdd = states(tt,8);
     double vx = states(tt,3); double vy = states(tt,4); double vz = states(tt,5);
     double yaw = states(tt,12); double yaw_rate = states(tt,13);
-    double j1 = states(tt,14); double j2 = states(tt,15);
+    double j1 = m1*states(tt,14) + c1; 
+    double j2 = m1*states(tt,15) + c2;
 
     double T = sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81));
     double r = asin((-xdd*sin(yaw) + ydd*cos(yaw))/T);
@@ -798,13 +925,16 @@ int main(int argc, char** argv) {
 
     // ROS_INFO("Thrust = %f", T);
 
-    double exp_x = x + (sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(yaw) + cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*cos(yaw)*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(yaw)*(l2*cos(j1 + j2) + l1*cos(j1));
-    double exp_y = y + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw)*(l2*cos(j1 + j2) + l1*cos(j1)) - (cos(yaw)*sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81)))) - cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw))*(l2*sin(j1 + j2) + l1*sin(j1));
-    double exp_z = z + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) - sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*(l2*cos(j1 + j2) + l1*cos(j1));
+    // double exp_x = x + (sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(yaw) + cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*cos(yaw)*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(yaw)*(l2*cos(j1 + j2) + l1*cos(j1));
+    // double exp_y = y + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw)*(l2*cos(j1 + j2) + l1*cos(j1)) - (cos(yaw)*sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81)))) - cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw))*(l2*sin(j1 + j2) + l1*sin(j1));
+    // double exp_z = z + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) - sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*(l2*cos(j1 + j2) + l1*cos(j1));
 
     goalPub.publish(goal_marker);
     goalPub.publish(cage);
-    goalPub.publish(quad_body_marker);
+    quadPub.publish(quad_body_marker1);
+    quadPub.publish(quad_body_marker2);
+    quadPub.publish(quad_body_marker3);
+    quadPub.publish(quad_body_marker4);
     obsPub.publish(link2marker1);
     obsPub.publish(link2marker2);
     obsPub.publish(link2marker3);
@@ -825,8 +955,11 @@ int main(int argc, char** argv) {
     joint_state.name.push_back("airbasetolink1");
     joint_state.name.push_back("link1tolink2");
 
-    joint_state.position.push_back(-states(tt,14) + 1.57);
+    // joint_state.position.push_back(-j1 + 1.57);
+    // joint_state.position.push_back(-j2);
+    joint_state.position.push_back(-states(tt, 14) + 1.57);
     joint_state.position.push_back(-states(tt,15));
+
     joint_state.header.stamp = ros::Time::now();
 
     jointPub.publish(joint_state);

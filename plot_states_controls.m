@@ -71,7 +71,7 @@ t = 0:(5/20):5;
 % subplot(3,1,3)
 % plot(t,wz*180/pi,'o')
 % suptitle('angular velocities')
-plot(t, p*180/pi,'r')
+% plot(t, p*180/pi,'r')
 
 % 
 % figure
@@ -122,11 +122,11 @@ plot(t, p*180/pi,'r')
 % plot(t,qd2)
 % suptitle('Joint Velocities')
 % 
-% figure
-% subplot(3,1,1)
-% plot(t,sx,'o')
-% subplot(3,1,2)
-% plot(t,sy,'o')
-% subplot(3,1,3)
-% plot(t,sz,'o')
-% suptitle('Quad Snap')
+figure
+subplot(3,1,1)
+plot(t,sx,'o')
+subplot(3,1,2)
+plot(t,sy,'o')
+subplot(3,1,3)
+plot(t,sz,'o')
+suptitle('Quad Snap')

@@ -1,10 +1,10 @@
 quad_x0: 0.0
-quad_y0: 0.8
+quad_y0: 0.0
 quad_z0: 1.5
 quad_ga0: 0.0
 
 arm_q1: -1.57
-arm_q2: 1.57
+arm_q2: 0.0
 
 goal_x: 3.0
 goal_y: 0.0
@@ -29,7 +29,7 @@ table_obs3_y: 0.2
 table_obs3_z: 0.25
 
 link_r: 0.03
-quad_r: 0.55
+quad_r: 0.275
 table_r: 0.25
 table_l: 0.25
 table_w: 0.5
