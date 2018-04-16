@@ -6,6 +6,13 @@ quad_ga0: 0.0
 arm_q1: -0.0
 arm_q2: 0.0
 
+qxx: 1.0
+qyy: 1.0
+qzz: 1.0
+qgg: 1.0
+qq1: 1.0
+qq2: 1.0
+
 goal_x: 3.0
 goal_y: 0.0
 goal_z: 1.4
@@ -36,5 +43,5 @@ table_w: 0.5
 table_h: 0.25
 obs_r: 0.05
 
-te: 3.0
-numSteps: 15
+te: 2.0
+numSteps: 10

@@ -14,7 +14,6 @@
 #include <sensor_msgs/JointState.h>
 #include <visualization_msgs/Marker.h>
 #include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
 /**
 * An example of an optimal control problem for
 * a quadrotor-arm system without obstacles.
@@ -53,13 +52,14 @@ int main(int argc, char** argv) {
   *
   */
 
+  ros::Time t1 = ros::Time::now();
+
   DifferentialState x0, y0, z0, 
                     x1, y1, z1,
                     x2, y2, z2,
                     x3, y3, z3,
                     ga0, ga1,
                     q1, q2;
-  DifferentialState qd1, qd2;
 
   IntermediateState eex, eey, eez, T, r, p;
 
@@ -94,39 +94,42 @@ int main(int argc, char** argv) {
   Control x4, y4, z4, ga2;
   // Control qd1, qd2;
   Control qdd1, qdd2;
-  // Parameter mq1, mq2, cq1, cq2;
-  // IntermediateState qd1, qd2;
-  // qd1 = mq1*qdd1 + cq1;
-  // qd2 = mq2*qdd2 + cq2;
+  Parameter mq1, mq2, cq1, cq2;
+  IntermediateState qd1, qd2;
+  qd1 = mq1*qdd1 + cq1;
+  qd2 = mq2*qdd2 + cq2;
 
   double ts = 0.0;
   double te; nh.getParam("te", te);
   int numSteps; nh.getParam("numSteps", numSteps);
-  DifferentialEquation  f(ts, te);
+  const double h = 0.01;
+  DiscretizedDifferentialEquation  f(h);
 
-  f << dot(x0) == x1;
-  f << dot(y0) == y1;
-  f << dot(z0) == z1;
+  f << next(x0) == x0 + h*x1;
+  f << next(y0) == y0 + h*y1;
+  f << next(z0) == z0 + h*z1;
 
-  f << dot(x1) == x2;
-  f << dot(y1) == y2;
-  f << dot(z1) == z2;
+  f << next(x1) == x0 + h*x1;
+  f << next(y1) == y0 + h*y1;
+  f << next(z1) == z0 + h*z1;
 
-  f << dot(x2) == x3;
-  f << dot(y2) == y3;
-  f << dot(z2) == z3;
+  f << next(x2) == x0 + h*x1;
+  f << next(y2) == y0 + h*y1;
+  f << next(z2) == z0 + h*z1;
 
-  f << dot(x3) == x4;
-  f << dot(y3) == y4;
-  f << dot(z3) == z4;
+  f << next(x3) == x0 + h*x1;
+  f << next(y3) == y0 + h*y1;
+  f << next(z3) == z0 + h*z1;
 
-  f << dot(ga0) == ga1;
-  f << dot(ga1) == ga2;
+  f << next(ga0) == ga0 + h*ga1;
+  f << next(ga1) == ga1 + h*ga2;
 
-  f << dot(q1) == qd1;
-  f << dot(q2) == qd2;
-  f << dot(qd1) == qdd1;
-  f << dot(qd2) == qdd2;
+  f << next(q1) << q1 + h*qd1;
+  f << next(q2) << q2 + h*qd2;
+
+  // eex = x0 + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0);
+  // eey = y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0);
+  // eez = z0 + l1*sin(q1) + l2*sin(q1+q2);
 
   T = sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
   r = asin((-x2*sin(ga0) + y2*cos(ga0))/T);
@@ -202,20 +205,10 @@ int main(int argc, char** argv) {
   * derivatives of flat outputs, yaw and joint
   * velocities, weighted by matrix Q
   */
-  double qxx, qyy, qzz, qgg, qq1, qq2;
-  nh.getParam("qxx", qxx);
-  nh.getParam("qyy", qyy);
-  nh.getParam("qzz", qzz);
-  nh.getParam("qgg", qgg);
-  nh.getParam("qq1", qq1);
-  nh.getParam("qq2", qq2);
   DMatrix Q(6, 6); Q.setIdentity();
-  Q(0,0) = qxx;
-  Q(1,1) = qyy;
-  Q(2,2) = qzz;
-  Q(3,3) = qgg;
-  Q(4,4) = qq1;
-  Q(5,5) = qq2;
+  // Q(4,4) = 0.01; Q(5,5) = 0.01;
+  Q *= 0.01;
+  Q(3,3) = 1.0;
   DVector offset(6); offset.setAll(0.0);
   Function eta;
   eta << x4 << y4 << z4 << ga2 << qd1 << qd2;
@@ -283,19 +276,17 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_START, ga1 == 0.0);
   ocp.subjectTo(AT_START, qd1 == 0.0);
   ocp.subjectTo(AT_START, qd2 == 0.0);
-  ocp.subjectTo(AT_START, qdd1 == 0.0);
-  ocp.subjectTo(AT_START, qdd2 == 0.0);
 
   ocp.subjectTo(-1.57 <= q1 <= 0.0); // joint limits
   ocp.subjectTo(-1.57 <= q2 <= 1.57); // joint limits
-  ocp.subjectTo(-1.57 <= ga0 <= 1.57);
+  ocp.subjectTo(-1.57 <= ga0 <= 1.57); // joint limits
 
   ocp.subjectTo(-0.78 <= qd1 <= 0.78); // joint velocity limits
   ocp.subjectTo(-0.78 <= qd2 <= 0.78);
 
-  ocp.subjectTo(-2.0 <= x1 <= 2.0);
-  ocp.subjectTo(-2.0 <= y1 <= 2.0);
-  ocp.subjectTo(-2.0 <= z1 <= 2.0);
+  ocp.subjectTo(-1.0 <= x1 <= 1.0);
+  ocp.subjectTo(-2.0 <= y1 <= 1.0);
+  ocp.subjectTo(-1.0 <= z1 <= 1.0);
   ocp.subjectTo(-1.0 <= ga1 <= 1.0);
 
   ocp.subjectTo(T <= 12.0);
@@ -314,8 +305,6 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, ga1 == 0.0);
   ocp.subjectTo(AT_END, qd1 == 0.0);
   ocp.subjectTo(AT_END, qd2 == 0.0);
-  ocp.subjectTo(AT_END, qdd1 == 0.0);
-  ocp.subjectTo(AT_END, qdd2 == 0.0);
 
   ocp.subjectTo(AT_END, (x0 + qoffx + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == gx);
   ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == gy);
@@ -333,7 +322,6 @@ int main(int argc, char** argv) {
   std::unique_ptr<OptimizationAlgorithm> algorithm;
   algorithm.reset(new OptimizationAlgorithm(ocp));
   algorithm->set(MAX_NUM_QP_ITERATIONS, 20);
-  algorithm->set(MAX_NUM_ITERATIONS, 50);
   algorithm->set(INFEASIBLE_QP_HANDLING, IQH_STOP);
   algorithm->set( INTEGRATOR_TYPE, INT_RK45);
   algorithm->set(DISCRETIZATION_TYPE, MULTIPLE_SHOOTING);
@@ -341,18 +329,25 @@ int main(int argc, char** argv) {
   algorithm->set(KKT_TOLERANCE, 1e-5);
 
   Grid timeGrid(ts, te, numSteps+1);
-  VariablesGrid xi(18, timeGrid);
+  VariablesGrid xi(16, timeGrid);
   VariablesGrid ui(6, timeGrid);
 
   algorithm->initializeDifferentialStates(xi);
   algorithm->initializeControls(ui);
 
-  ros::Time t1 = ros::Time::now();
+  ROS_INFO("Setup took %f seconds", (ros::Time::now()-t1).toSec());
 
   algorithm->solve();
 
   algorithm->getDifferentialStates(xi);
   algorithm->getControls(ui);
+  DVector params(4);
+  algorithm->getParameters(params);
+  double m1 = params(0);
+  double m2 = params(1);
+  double c1 = params(2);
+  double c2 = params(3);
+  ROS_INFO("Parameters : %f %f %f %f", m1, m2, c1, c2);
 
   ocp.subjectTo(((pq1x-cx)*(pq1x-cx) + (pq1y-cy)*(pq1y-cy)) >= (ora+qr)*(ora+qr));
   ocp.subjectTo(((pq1x-cx2)*(pq1x-cx2) + (pq1y-cy2)*(pq1y-cy2)) >= (ora+qr)*(ora+qr));
@@ -390,11 +385,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p11x-ox2)*(p11x-ox2) + (p11y-oy2)*(p11y-oy2) + (p11z-oz2)*(p11z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p11x-ox3)*(p11x-ox3) + (p11y-oy3)*(p11y-oy3) + (p11z-oz3)*(p11z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p12x-cx)*(p12x-cx) + (p12y-cy)*(p12y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p12x-cx2)*(p12x-cx2) + (p12y-cy2)*(p12y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p12x-ox1)*(p12x-ox1) + (p12y-oy1)*(p12y-oy1) + (p12z-oz1)*(p12z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p12x-ox2)*(p12x-ox2) + (p12y-oy2)*(p12y-oy2) + (p12z-oz2)*(p12z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p12x-ox3)*(p12x-ox3) + (p12y-oy3)*(p12y-oy3) + (p12z-oz3)*(p12z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-cx)*(p12x-cx) + (p12y-cy)*(p12y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p12x-cx2)*(p12x-cx2) + (p12y-cy2)*(p12y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p12x-ox1)*(p12x-ox1) + (p12y-oy1)*(p12y-oy1) + (p12z-oz1)*(p12z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-ox2)*(p12x-ox2) + (p12y-oy2)*(p12y-oy2) + (p12z-oz2)*(p12z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-ox3)*(p12x-ox3) + (p12y-oy3)*(p12y-oy3) + (p12z-oz3)*(p12z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p13x-cx)*(p13x-cx) + (p13y-cy)*(p13y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p13x-cx2)*(p13x-cx2) + (p13y-cy2)*(p13y-cy2)) >= (lr+ora)*(lr+ora));
@@ -402,11 +397,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p13x-ox2)*(p13x-ox2) + (p13y-oy2)*(p13y-oy2) + (p13z-oz2)*(p13z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p13x-ox3)*(p13x-ox3) + (p13y-oy3)*(p13y-oy3) + (p13z-oz3)*(p13z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p14x-cx2)*(p14x-cx2) + (p14y-cy2)*(p14y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p14x-cx)*(p14x-cx) + (p14y-cy)*(p14y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p14x-ox1)*(p14x-ox1) + (p14y-oy1)*(p14y-oy1) + (p14z-oz1)*(p14z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p14x-ox2)*(p14x-ox2) + (p14y-oy2)*(p14y-oy2) + (p14z-oz2)*(p14z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p14x-ox3)*(p14x-ox3) + (p14y-oy3)*(p14y-oy3) + (p14z-oz3)*(p14z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-cx2)*(p14x-cx2) + (p14y-cy2)*(p14y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p14x-cx)*(p14x-cx) + (p14y-cy)*(p14y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p14x-ox1)*(p14x-ox1) + (p14y-oy1)*(p14y-oy1) + (p14z-oz1)*(p14z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-ox2)*(p14x-ox2) + (p14y-oy2)*(p14y-oy2) + (p14z-oz2)*(p14z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-ox3)*(p14x-ox3) + (p14y-oy3)*(p14y-oy3) + (p14z-oz3)*(p14z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p21x-cx)*(p21x-cx) + (p21y-cy)*(p21y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p21x-cx2)*(p21x-cx2) + (p21y-cy2)*(p21y-cy2)) >= (lr+ora)*(lr+ora));
@@ -414,11 +409,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p21x-ox2)*(p21x-ox2) + (p21y-oy2)*(p21y-oy2) + (p21z-oz2)*(p21z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p21x-ox3)*(p21x-ox3) + (p21y-oy3)*(p21y-oy3) + (p21z-oz3)*(p21z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p22x-cx2)*(p22x-cx2) + (p22y-cy2)*(p22y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p22x-cx)*(p22x-cx) + (p22y-cy)*(p22y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p22x-ox1)*(p22x-ox1) + (p22y-oy1)*(p22y-oy1) + (p22z-oz1)*(p22z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p22x-ox2)*(p22x-ox2) + (p22y-oy2)*(p22y-oy2) + (p22z-oz2)*(p22z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p22x-ox3)*(p22x-ox3) + (p22y-oy3)*(p22y-oy3) + (p22z-oz3)*(p22z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-cx2)*(p22x-cx2) + (p22y-cy2)*(p22y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p22x-cx)*(p22x-cx) + (p22y-cy)*(p22y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p22x-ox1)*(p22x-ox1) + (p22y-oy1)*(p22y-oy1) + (p22z-oz1)*(p22z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-ox2)*(p22x-ox2) + (p22y-oy2)*(p22y-oy2) + (p22z-oz2)*(p22z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-ox3)*(p22x-ox3) + (p22y-oy3)*(p22y-oy3) + (p22z-oz3)*(p22z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p23x-cx)*(p23x-cx) + (p23y-cy)*(p23y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p23x-cx2)*(p23x-cx2) + (p23y-cy2)*(p23y-cy2)) >= (lr+ora)*(lr+ora));
@@ -426,11 +421,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p23x-ox2)*(p23x-ox2) + (p23y-oy2)*(p23y-oy2) + (p23z-oz2)*(p23z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p23x-ox3)*(p23x-ox3) + (p23y-oy3)*(p23y-oy3) + (p23z-oz3)*(p23z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p24x-cx)*(p24x-cx) + (p24y-cy)*(p24y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p24x-cx2)*(p24x-cx2) + (p24y-cy2)*(p24y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p24x-ox1)*(p24x-ox1) + (p24y-oy1)*(p24y-oy1) + (p24z-oz1)*(p24z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p24x-ox2)*(p24x-ox2) + (p24y-oy2)*(p24y-oy2) + (p24z-oz2)*(p24z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p24x-ox3)*(p24x-ox3) + (p24y-oy3)*(p24y-oy3) + (p24z-oz3)*(p24z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-cx)*(p24x-cx) + (p24y-cy)*(p24y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p24x-cx2)*(p24x-cx2) + (p24y-cy2)*(p24y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p24x-ox1)*(p24x-ox1) + (p24y-oy1)*(p24y-oy1) + (p24z-oz1)*(p24z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-ox2)*(p24x-ox2) + (p24y-oy2)*(p24y-oy2) + (p24z-oz2)*(p24z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-ox3)*(p24x-ox3) + (p24y-oy3)*(p24y-oy3) + (p24z-oz3)*(p24z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p25x-cx)*(p25x-cx) + (p25y-cy)*(p25y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p25x-cx2)*(p25x-cx2) + (p25y-cy2)*(p25y-cy2)) >= (lr+ora)*(lr+ora));
@@ -440,16 +435,16 @@ int main(int argc, char** argv) {
 
   algorithm.reset(new OptimizationAlgorithm(ocp));
   algorithm->set(MAX_NUM_QP_ITERATIONS, 20);
-  algorithm->set(MAX_NUM_ITERATIONS, 50);
   algorithm->set(INFEASIBLE_QP_HANDLING, IQH_STOP);
   algorithm->set(INTEGRATOR_TYPE, INT_RK45);
   algorithm->set(DISCRETIZATION_TYPE, MULTIPLE_SHOOTING);
   algorithm->set(HESSIAN_APPROXIMATION, GAUSS_NEWTON);
-  algorithm->set(KKT_TOLERANCE, 1e-6);
+  algorithm->set(KKT_TOLERANCE, 1e-5);
+
+  ROS_INFO("Number of parameters = %i", ocp.getNP());
 
   algorithm->initializeDifferentialStates(xi);
   algorithm->initializeControls(ui);
-
 
   if(algorithm->solve() != SUCCESSFUL_RETURN) {
     ROS_WARN("Failed to solve. Exiting...");
@@ -460,21 +455,19 @@ int main(int argc, char** argv) {
 
   VariablesGrid states(16, timeGrid);
   VariablesGrid controls(6, timeGrid);
-  DVector params(4); 
   algorithm->getDifferentialStates(states);
   algorithm->getControls(controls);
 
   /**
   * Visuaize trajectory in Rviz
   */
-  ros::Duration(0.5).sleep();
+  ros::Duration(2.0).sleep();
   tf::TransformBroadcaster br;
   ros::Publisher jointPub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
   ros::Publisher goalPub = nh.advertise<visualization_msgs::Marker>("/goal_marker", 2);
   ros::Publisher quadPub = nh.advertise<visualization_msgs::Marker>("/quad_marker", 5);
   ros::Publisher obsPub = nh.advertise<visualization_msgs::Marker>("/obs_marker", 20);
   ros::Publisher odomPub = nh.advertise<nav_msgs::Odometry>("/odometry",1);
-  ros::Publisher pathPub = nh.advertise<nav_msgs::Path>("/path",1);
 
   visualization_msgs::Marker cage;
   cage.header.frame_id = "world";
@@ -901,8 +894,6 @@ int main(int argc, char** argv) {
   tf::TransformListener listener;
   ros::Duration(0.5).sleep();
   ros::Time start_time = ros::Time::now();
-  nav_msgs::Path path;
-  path.header.frame_id = "world";
   for(int tt=0; tt < numSteps+1; tt++) {
 
     double x = states(tt,0); double y = states(tt,1); double z = states(tt,2);
@@ -921,7 +912,7 @@ int main(int argc, char** argv) {
      tf::Vector3(states(tt, 0), states(tt, 1), states(tt, 2)));
 
     // states_log << (double)tt/10.0 <<" ";
-    for(int xx=0; xx < 18; xx++) states_log << states(tt, xx) <<" ";
+    for(int xx=0; xx < 16; xx++) states_log << states(tt, xx) <<" ";
     states_log << "\n";
 
     for(int uu=0; uu < 6; uu++) controls_log << controls(tt, uu) <<" ";
@@ -961,41 +952,31 @@ int main(int argc, char** argv) {
     joint_state.name.push_back("airbasetolink1");
     joint_state.name.push_back("link1tolink2");
 
-    // joint_state.position.push_back(-j1 + 1.57);
-    // joint_state.position.push_back(-j2);
-    joint_state.position.push_back(-states(tt, 14) + 1.57);
-    joint_state.position.push_back(-states(tt,15));
+    joint_state.position.push_back(-j1 + 1.57);
+    joint_state.position.push_back(-j2);
+    // joint_state.position.push_back(-states(tt, 14) + 1.57);
+    // joint_state.position.push_back(-states(tt,15));
 
     joint_state.header.stamp = ros::Time::now();
 
     jointPub.publish(joint_state);
 
-    geometry_msgs::PoseStamped pose_msg;
-    pose_msg.header.stamp = ros::Time::now();
-    pose_msg.header.frame_id = "world";
-    pose_msg.pose.position.x = states(tt,0);
-    pose_msg.pose.position.y = states(tt,1);
-    pose_msg.pose.position.z = states(tt,2);
-    pose_msg.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(r,p,states(tt,12));
+    nav_msgs::Odometry odommsg;
+    odommsg.header.stamp = ros::Time::now();
+    odommsg.header.frame_id = "world";
+    odommsg.pose.pose.position.x = states(tt,0);
+    odommsg.pose.pose.position.y = states(tt,1);
+    odommsg.pose.pose.position.z = states(tt,2);
 
-    path.poses.push_back(pose_msg);
-    pathPub.publish(path);
-    // nav_msgs::Odometry odommsg;
-    // odommsg.header.stamp = ros::Time::now();
-    // odommsg.header.frame_id = "world";
-    // odommsg.pose.pose.position.x = states(tt,0);
-    // odommsg.pose.pose.position.y = states(tt,1);
-    // odommsg.pose.pose.position.z = states(tt,2);
+    odommsg.pose.pose.orientation = tf::createQuaternionMsgFromYaw(states(tt,12));
 
-    // odommsg.pose.pose.orientation = tf::createQuaternionMsgFromYaw(states(tt,12));
+    odommsg.twist.twist.linear.x = states(tt,3);
+    odommsg.twist.twist.linear.y = states(tt,4);
+    odommsg.twist.twist.linear.z = states(tt,5);
 
-    // odommsg.twist.twist.linear.x = states(tt,3);
-    // odommsg.twist.twist.linear.y = states(tt,4);
-    // odommsg.twist.twist.linear.z = states(tt,5);
+    odomPub.publish(odommsg);
 
-    // odomPub.publish(odommsg);
-
-    ros::Duration(2*te/numSteps).sleep();
+    ros::Duration(te/numSteps).sleep();
   }
   return 0;
 }
