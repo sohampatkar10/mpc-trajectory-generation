@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_START, qdd1 == 0.0);
   ocp.subjectTo(AT_START, qdd2 == 0.0);
 
-  ocp.subjectTo(-1.57 <= q1 <= 0.0); // joint limits
+  ocp.subjectTo(-1.3 <= q1 <= 0.0); // joint limits
   ocp.subjectTo(-1.57 <= q2 <= 1.57); // joint limits
   ocp.subjectTo(-1.57 <= ga0 <= 1.57);
 
@@ -471,10 +471,11 @@ int main(int argc, char** argv) {
   tf::TransformBroadcaster br;
   ros::Publisher jointPub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
   ros::Publisher goalPub = nh.advertise<visualization_msgs::Marker>("/goal_marker", 2);
-  ros::Publisher quadPub = nh.advertise<visualization_msgs::Marker>("/quad_marker", 5);
+  ros::Publisher quadPub = nh.advertise<visualization_msgs::Marker>("/quad_marker", 20);
   ros::Publisher obsPub = nh.advertise<visualization_msgs::Marker>("/obs_marker", 20);
   ros::Publisher odomPub = nh.advertise<nav_msgs::Odometry>("/odometry",1);
   ros::Publisher pathPub = nh.advertise<nav_msgs::Path>("/path",1);
+  ros::Publisher eePathPub = nh.advertise<nav_msgs::Path>("/ee_path",1);
 
   visualization_msgs::Marker cage;
   cage.header.frame_id = "world";
@@ -511,7 +512,7 @@ int main(int argc, char** argv) {
   quad_body_marker1.scale.x = 2*qr;
   quad_body_marker1.scale.y = 2*qr;
   quad_body_marker1.scale.z = 2*qr;
-  quad_body_marker1.color.a = 0.1;
+  quad_body_marker1.color.a = 0.3;
   quad_body_marker1.color.r = 0.0;
   quad_body_marker1.color.g = 0.0;
   quad_body_marker1.color.b = 1.0;
@@ -531,7 +532,7 @@ int main(int argc, char** argv) {
   quad_body_marker2.scale.x = 2*qr;
   quad_body_marker2.scale.y = 2*qr;
   quad_body_marker2.scale.z = 2*qr;
-  quad_body_marker2.color.a = 0.1;
+  quad_body_marker2.color.a = 0.3;
   quad_body_marker2.color.r = 0.0;
   quad_body_marker2.color.g = 0.0;
   quad_body_marker2.color.b = 1.0;
@@ -551,7 +552,7 @@ int main(int argc, char** argv) {
   quad_body_marker3.scale.x = 2*qr;
   quad_body_marker3.scale.y = 2*qr;
   quad_body_marker3.scale.z = 2*qr;
-  quad_body_marker3.color.a = 0.1;
+  quad_body_marker3.color.a = 0.3;
   quad_body_marker3.color.r = 0.0;
   quad_body_marker3.color.g = 0.0;
   quad_body_marker3.color.b = 1.0;
@@ -571,7 +572,7 @@ int main(int argc, char** argv) {
   quad_body_marker4.scale.x = 2*qr;
   quad_body_marker4.scale.y = 2*qr;
   quad_body_marker4.scale.z = 2*qr;
-  quad_body_marker4.color.a = 0.1;
+  quad_body_marker4.color.a = 0.3;
   quad_body_marker4.color.r = 0.0;
   quad_body_marker4.color.g = 0.0;
   quad_body_marker4.color.b = 1.0;
@@ -902,15 +903,15 @@ int main(int argc, char** argv) {
   ros::Duration(0.5).sleep();
   ros::Time start_time = ros::Time::now();
   nav_msgs::Path path;
+  nav_msgs::Path ee_path;
   path.header.frame_id = "world";
+  ee_path.header.frame_id = "world";
   for(int tt=0; tt < numSteps+1; tt++) {
 
     double x = states(tt,0); double y = states(tt,1); double z = states(tt,2);
     double xdd = states(tt,6); double ydd = states(tt,7); double zdd = states(tt,8);
     double vx = states(tt,3); double vy = states(tt,4); double vz = states(tt,5);
     double yaw = states(tt,12); double yaw_rate = states(tt,13);
-    double j1 = m1*states(tt,14) + c1; 
-    double j2 = m1*states(tt,15) + c2;
 
     double T = sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81));
     double r = asin((-xdd*sin(yaw) + ydd*cos(yaw))/T);
@@ -936,25 +937,25 @@ int main(int argc, char** argv) {
     // double exp_z = z + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) - sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*(l2*cos(j1 + j2) + l1*cos(j1));
 
     goalPub.publish(goal_marker);
-    goalPub.publish(cage);
+    // goalPub.publish(cage);
     quadPub.publish(quad_body_marker1);
     quadPub.publish(quad_body_marker2);
     quadPub.publish(quad_body_marker3);
     quadPub.publish(quad_body_marker4);
-    obsPub.publish(link2marker1);
-    obsPub.publish(link2marker2);
-    obsPub.publish(link2marker3);
-    obsPub.publish(link2marker4);
+    quadPub.publish(link2marker1);
+    quadPub.publish(link2marker2);
+    quadPub.publish(link2marker3);
+    quadPub.publish(link2marker4);
     obsPub.publish(obs_marker);
     obsPub.publish(obs_marker2);
     obsPub.publish(marker1);
     obsPub.publish(marker2);
     obsPub.publish(marker3);
-    obsPub.publish(link1marker1);
-    obsPub.publish(link1marker2);
-    obsPub.publish(link1marker3);
-    obsPub.publish(link1marker4);
-    obsPub.publish(link2marker5);
+    quadPub.publish(link1marker1);
+    quadPub.publish(link1marker2);
+    quadPub.publish(link1marker3);
+    quadPub.publish(link1marker4);
+    quadPub.publish(link2marker5);
     obsPub.publish(eemarker);
 
     sensor_msgs::JointState joint_state;
@@ -980,6 +981,23 @@ int main(int argc, char** argv) {
 
     path.poses.push_back(pose_msg);
     pathPub.publish(path);
+
+    try {
+      tf::StampedTransform eeTf;
+      listener.lookupTransform("world", "link3", ros::Time(0), eeTf);
+      geometry_msgs::PoseStamped ee_pose;
+      ee_pose.header.stamp = ros::Time::now();
+      ee_pose.header.frame_id = "world";
+      ee_pose.pose.position.x = eeTf.getOrigin().x();
+      ee_pose.pose.position.y = eeTf.getOrigin().y();
+      ee_pose.pose.position.z = eeTf.getOrigin().z();
+      ee_pose.pose.orientation = tf::createQuaternionMsgFromYaw(0.0);
+      ee_path.poses.push_back(ee_pose);
+      eePathPub.publish(ee_path);
+      ROS_INFO("Publishing");
+    } catch(...) {
+      ROS_INFO("Transform not found");
+    }
     // nav_msgs::Odometry odommsg;
     // odommsg.header.stamp = ros::Time::now();
     // odommsg.header.frame_id = "world";
