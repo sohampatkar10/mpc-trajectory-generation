@@ -1,11 +1,12 @@
+# Initial state
 quad_x0: 0.0
 quad_y0: 0.5
 quad_z0: 1.5
 quad_ga0: 0.0
-
 arm_q1: -1.25
 arm_q2: 0.0
 
+# Cost 
 qxx: 0.1
 qyy: 1.0
 qzz: 1.0
@@ -13,16 +14,20 @@ qgg: 1.0
 qq1: 0.1
 qq2: 0.1
 
+# Goal end-effector
 goal_x: 3.0
 goal_y: 0.0
 goal_z: 0.7
 
+# Cylinder obstacle 1
 cyl_obs_x: 1.5
 cyl_obs_y: 0.7
 
+# Cylinder obstacle 2
 cyl_obs_x2: 1.5
 cyl_obs_y2: -0.7
 
+# Table obstacles using 3 spheres
 table_obs1_x: 3.0
 table_obs1_y: -0.2
 table_obs1_z: 0.25
@@ -35,13 +40,13 @@ table_obs3_x: 3.0
 table_obs3_y: 0.2
 table_obs3_z: 0.25
 
-link_r: 0.03
-quad_r: 0.275
-table_r: 0.25
-table_l: 0.25
-table_w: 0.5
-table_h: 0.25
-obs_r: 0.05
+link_r: 0.03 # Arm link sphere radius
+quad_r: 0.275 # Quad sphere
+table_r: 0.25 # Table obstacle radius
+table_l: 0.25 # Table length 
+table_w: 0.5 # Table width
+table_h: 0.25 # Table height
+obs_r: 0.05 # Cylinder obstacle radius
 
-te: 10.0
-numSteps: 40
+te: 10.0 # End time
+numSteps: 40 # Number of steps

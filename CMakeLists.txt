@@ -116,19 +116,12 @@ link_directories(${ACADO_LIBRARY_DIRS})
 ## Your package locations should be listed before other locations
 include_directories(
  include
- include/qpoases
- include/qpoases/INCLUDE
- include/qpoases/SRC
  ${ACADO_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
- add_library(${PROJECT_NAME}
-   src/acado_qpoases_interface.cpp
-   src/acado_integrator.c
-   src/acado_auxiliary_functions.c
-   src/acado_solver.c
- )
+# add_library(${PROJECT_NAME}
+# )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -138,16 +131,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(ocp_example src/ocp_example.cpp)
-add_executable(ocp_diff src/ocp_diff.cpp)
-add_executable(quad_arm src/quad_arm.cpp)
-add_executable(quad_arm_form2 src/quad_arm_form2.cpp)
-add_executable(quad_obs_nlp src/quad_obstacle_nlp.cpp)
 add_executable(quad src/quad.cpp)
-add_executable(quad_code_gen src/quad_code_gen.cpp)
-add_executable(quad_arm_code_gen src/quad_arm_code_gen.cpp)
-add_executable(quad_arm_sim src/quad_arm_sim.cpp)
-add_executable(controller_test src/controller_test.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -160,50 +144,8 @@ add_executable(controller_test src/controller_test.cpp)
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(ocp_example
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-
-target_link_libraries(ocp_diff
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-target_link_libraries(quad_arm
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-
-target_link_libraries(quad_arm_form2
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-target_link_libraries(quad_obs_nlp
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
 
 target_link_libraries(quad
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-
-target_link_libraries(quad_code_gen
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-
-target_link_libraries(quad_arm_code_gen
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-
-target_link_libraries(controller_test
-   ${catkin_LIBRARIES}
-   ${ACADO_SHARED_LIBRARIES}
-)
-target_link_libraries(quad_arm_sim
-   ${PROJECT_SOURCE_DIR}/lib/libacado_exported_rti.a
    ${catkin_LIBRARIES}
    ${ACADO_SHARED_LIBRARIES}
 )

@@ -15,16 +15,12 @@
 #include <visualization_msgs/Marker.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+
 /**
-* An example of an optimal control problem for
-* a quadrotor-arm system without obstacles.
-*
-* The resulting trajectory is simulated in RViz
-*
-* The resulting controls and states are stored in 
-* files given by states_file and controls_file.
-*
+* Code for trajectory generation of a quadrotor-arm system
+* and visualization of output trajectory
 */
+
 USING_NAMESPACE_ACADO
 
 int main(int argc, char** argv) {
@@ -59,49 +55,64 @@ int main(int argc, char** argv) {
                     x3, y3, z3,
                     ga0, ga1,
                     q1, q2;
-  DifferentialState qd1, qd2;
 
+  Control x4, y4, z4, ga2;
+  Control qd1, qd2;
+  /**
+  * Intermediate States:
+  * End-effector position, Thrust, roll and pitch
+  */
   IntermediateState eex, eey, eez, T, r, p;
 
+  /**
+  * Quadrotor sphere centers
+  */
   IntermediateState pq1x, pq1y, pq1z;
   IntermediateState pq2x, pq2y, pq2z;
   IntermediateState pq3x, pq3y, pq3z;
   IntermediateState pq4x, pq4y, pq4z;
 
+  /**
+  * Arm link-1 sphere centers
+  */
   IntermediateState p11x, p11y, p11z;
   IntermediateState p12x, p12y, p12z;
   IntermediateState p13x, p13y, p13z;
   IntermediateState p14x, p14y, p14z;
 
+  /**
+  * Arm link-2 sphere centers
+  */
   IntermediateState p21x, p21y, p21z;
   IntermediateState p22x, p22y, p22z;
   IntermediateState p23x, p23y, p23z;
   IntermediateState p24x, p24y, p24z;
   IntermediateState p25x, p25y, p25z;
 
+  /* Radius of arm link spheres */
   double lr; nh.getParam("link_r", lr);
 
+  /* link lengths and offset from quad center */
   double l1 = 0.255; double l2 = 0.29 + lr; 
   double qoffx = 0.2; double qoffz = -0.1;
 
+  /* Position of sphere center w.r.t one end of arm link-1 */
   double l11 = lr; double l12 = 3.0*lr; 
   double l13 = 5.0*lr; double l14 = 7.0*lr;
 
+  /* Position of sphere center w.r.t one end of arm link-2 */
   double l21 = lr; double l22 = 3.0*lr; 
   double l23 = 5.0*lr; double l24 = 7.0*lr;
   double l25 = 9.0*lr;
 
-  Control x4, y4, z4, ga2;
-  // Control qd1, qd2;
-  Control qdd1, qdd2;
-  // Parameter mq1, mq2, cq1, cq2;
-  // IntermediateState qd1, qd2;
-  // qd1 = mq1*qdd1 + cq1;
-  // qd2 = mq2*qdd2 + cq2;
-
+  /* Optimal control time parameters */
   double ts = 0.0;
   double te; nh.getParam("te", te);
   int numSteps; nh.getParam("numSteps", numSteps);
+
+  /**
+  * Dynamics
+  */
   DifferentialEquation  f(ts, te);
 
   f << dot(x0) == x1;
@@ -125,15 +136,20 @@ int main(int argc, char** argv) {
 
   f << dot(q1) == qd1;
   f << dot(q2) == qd2;
-  f << dot(qd1) == qdd1;
-  f << dot(qd2) == qdd2;
 
+  /**
+  * Thrust, roll and pitch
+  */
   T = sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81));
   r = asin((-x2*sin(ga0) + y2*cos(ga0))/T);
   p = atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81));
 
+  /* Radius of quad spheres */
   double qr;  nh.getParam("quad_r", qr);
 
+  /**
+  * Propogation of quad spheres
+  */
   pq1x = x0 + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0) - qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) - cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))));
   pq1y = y0 + qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0);
   pq1z = z0 + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - qr*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)));
@@ -150,6 +166,9 @@ int main(int argc, char** argv) {
   pq4y = y0 + qr*(cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0) + sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0)) - qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0);
   pq4z = z0 + qr*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))) + qr*cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))));
 
+  /**
+  * Propogation of quadrotor spheres by forward kinematics
+  */
   eex =  x0 + (sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(ga0) + cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*cos(ga0)*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81))))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1)) + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(ga0)*(qoffx + l2*cos(q1 + q2) + l1*cos(q1));
   eey =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l2*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1));
   eez =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l2*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l2*cos(q1 + q2) + l1*cos(q1));
@@ -190,15 +209,15 @@ int main(int argc, char** argv) {
   p25y =  y0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0)*(qoffx + l25*cos(q1 + q2) + l1*cos(q1)) - (cos(ga0)*sin(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81)))) - cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*sin(ga0))*(qoffz + l25*sin(q1 + q2) + l1*sin(q1));
   p25z =  z0 + cos(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*cos(asin((-x2*sin(ga0) + y2*cos(ga0))/sqrt(x2*x2 + y2*y2 + (z2+9.81)*(z2+9.81))))*(qoffz + l25*sin(q1 + q2) + l1*sin(q1)) - sin(atan((x2*cos(ga0) + y2*sin(ga0))/(z2 + 9.81)))*(qoffx + l25*cos(q1 + q2) + l1*cos(q1));
 
+  /* Angular velocities */
   IntermediateState wX, wY;
   wX = y3*(cos(r)*cos(ga0) + sin(p)*sin(r)*sin(ga0)) - x3*(cos(r)*sin(ga0) - cos(ga0)*sin(p)*sin(r)) + z3*cos(p)*sin(r);
   wY = x3*cos(p)*cos(ga0) - z3*sin(p) + y3*cos(p)*sin(ga0);
 
-  std::cout <<"Added Dynamics" << std::endl;
   /**
   * Cost along trajectory
   *
-  * Cost along tr8ajectory is defined on higher 
+  * Cost along trajectory is defined on higher 
   * derivatives of flat outputs, yaw and joint
   * velocities, weighted by matrix Q
   */
@@ -220,6 +239,7 @@ int main(int argc, char** argv) {
   Function eta;
   eta << x4 << y4 << z4 << ga2 << qd1 << qd2;
 
+  /* Goal end-effector position */
   double gx, gy, gz;
   nh.getParam("goal_x", gx);
   nh.getParam("goal_y", gy);
@@ -235,7 +255,6 @@ int main(int argc, char** argv) {
   OCP ocp(ts, te, numSteps);
 
   ocp.minimizeLSQ(Q, eta, offset); // Trajectory Cost
-  std::cout <<"Added trajectory cost" << std::endl;
 
   ocp.subjectTo(f); // Dynamics
 
@@ -248,14 +267,15 @@ int main(int argc, char** argv) {
         ox3, oy3, oz3,
         tr, ora;
 
+  /* Initial state */
   nh.getParam("quad_x0", start_x);
   nh.getParam("quad_y0", start_y);
   nh.getParam("quad_z0", start_z);
   nh.getParam("quad_ga0", start_yaw);
-
   nh.getParam("arm_q1", start_q1);
   nh.getParam("arm_q2", start_q2);
 
+  /* Obstacle parameters */
   nh.getParam("cyl_obs_x", cx); nh.getParam("cyl_obs_y", cy);
   nh.getParam("cyl_obs_x2", cx2); nh.getParam("cyl_obs_y2", cy2);
   nh.getParam("table_obs1_x", ox1); nh.getParam("table_obs1_y", oy1); nh.getParam("table_obs1_z", oz1);
@@ -264,6 +284,7 @@ int main(int argc, char** argv) {
   nh.getParam("table_r", tr);
   nh.getParam("obs_r", ora);
 
+  /* Boundary conditions */
   ocp.subjectTo(AT_START, x0 == start_x);
   ocp.subjectTo(AT_START, y0 == start_y);
   ocp.subjectTo(AT_START, z0 == start_z);
@@ -283,24 +304,6 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_START, ga1 == 0.0);
   ocp.subjectTo(AT_START, qd1 == 0.0);
   ocp.subjectTo(AT_START, qd2 == 0.0);
-  ocp.subjectTo(AT_START, qdd1 == 0.0);
-  ocp.subjectTo(AT_START, qdd2 == 0.0);
-
-  ocp.subjectTo(-1.3 <= q1 <= 0.0); // joint limits
-  ocp.subjectTo(-1.57 <= q2 <= 1.57); // joint limits
-  ocp.subjectTo(-1.57 <= ga0 <= 1.57);
-
-  ocp.subjectTo(-0.78 <= qd1 <= 0.78); // joint velocity limits
-  ocp.subjectTo(-0.78 <= qd2 <= 0.78);
-
-  ocp.subjectTo(-2.0 <= x1 <= 2.0);
-  ocp.subjectTo(-2.0 <= y1 <= 2.0);
-  ocp.subjectTo(-2.0 <= z1 <= 2.0);
-  ocp.subjectTo(-1.0 <= ga1 <= 1.0);
-
-  ocp.subjectTo(T <= 12.0);
-  ocp.subjectTo(-3.14 <= wX <= 3.14);
-  ocp.subjectTo(-3.14 <= wY <= 3.14);
 
   ocp.subjectTo(AT_END, x1 == 0.0);
   ocp.subjectTo(AT_END, y1 == 0.0);
@@ -314,15 +317,30 @@ int main(int argc, char** argv) {
   ocp.subjectTo(AT_END, ga1 == 0.0);
   ocp.subjectTo(AT_END, qd1 == 0.0);
   ocp.subjectTo(AT_END, qd2 == 0.0);
-  ocp.subjectTo(AT_END, qdd1 == 0.0);
-  ocp.subjectTo(AT_END, qdd2 == 0.0);
 
+  /* Limits */
+  ocp.subjectTo(-1.3 <= q1 <= 0.0); // joint limits
+  ocp.subjectTo(-1.57 <= q2 <= 1.57); // joint limits
+  ocp.subjectTo(-1.57 <= ga0 <= 1.57); // yaw limit
+
+  ocp.subjectTo(-0.78 <= qd1 <= 0.78); // joint velocity limits
+  ocp.subjectTo(-0.78 <= qd2 <= 0.78);
+
+  ocp.subjectTo(-2.0 <= x1 <= 2.0); // Velocity limits
+  ocp.subjectTo(-2.0 <= y1 <= 2.0);
+  ocp.subjectTo(-2.0 <= z1 <= 2.0);
+  ocp.subjectTo(-1.0 <= ga1 <= 1.0);
+
+  ocp.subjectTo(T <= 12.0); // Thrust
+
+  /* Terminal contstraint - End effector at goal with zero roll and pitch */
   ocp.subjectTo(AT_END, (x0 + qoffx + (l1*cos(q1) + l2*cos(q1+q2))*cos(ga0)) == gx);
   ocp.subjectTo(AT_END, (y0 + (l1*cos(q1) + l2*cos(q1+q2))*sin(ga0)) == gy);
   ocp.subjectTo(AT_END, (z0 + qoffz + l1*sin(q1) + l2*sin(q1+q2)) == gz);
 
-  ocp.subjectTo(AT_END, (q1+q2) == 0);
+  ocp.subjectTo(AT_END, (q1+q2) == 0); // Goal end -effector orientation
 
+  /* Position box constraints */
   ocp.subjectTo(x0 <= gx + 0.1);
   ocp.subjectTo(-1.5 <= y0 <= 1.5);
   ocp.subjectTo(0.001 <= z0 <= 5.0);
@@ -341,19 +359,23 @@ int main(int argc, char** argv) {
   algorithm->set(KKT_TOLERANCE, 1e-5);
 
   Grid timeGrid(ts, te, numSteps+1);
-  VariablesGrid xi(18, timeGrid);
+  VariablesGrid xi(16, timeGrid);
   VariablesGrid ui(6, timeGrid);
 
+  /* Initialize Empty grid */
   algorithm->initializeDifferentialStates(xi);
   algorithm->initializeControls(ui);
 
   ros::Time t1 = ros::Time::now();
 
+  /* Solve without any obstacles */
   algorithm->solve();
 
+  /* Populate xi and ui using results from above optimization */
   algorithm->getDifferentialStates(xi);
   algorithm->getControls(ui);
 
+  /* Add obstacle constraints */
   ocp.subjectTo(((pq1x-cx)*(pq1x-cx) + (pq1y-cy)*(pq1y-cy)) >= (ora+qr)*(ora+qr));
   ocp.subjectTo(((pq1x-cx2)*(pq1x-cx2) + (pq1y-cy2)*(pq1y-cy2)) >= (ora+qr)*(ora+qr));
   ocp.subjectTo(((pq1x-ox1)*(pq1x-ox1) + (pq1y-oy1)*(pq1y-oy1) + (pq1z-oz1)*(pq1z-oz1)) >= (qr+tr)*(qr+tr));
@@ -390,11 +412,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p11x-ox2)*(p11x-ox2) + (p11y-oy2)*(p11y-oy2) + (p11z-oz2)*(p11z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p11x-ox3)*(p11x-ox3) + (p11y-oy3)*(p11y-oy3) + (p11z-oz3)*(p11z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p12x-cx)*(p12x-cx) + (p12y-cy)*(p12y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p12x-cx2)*(p12x-cx2) + (p12y-cy2)*(p12y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p12x-ox1)*(p12x-ox1) + (p12y-oy1)*(p12y-oy1) + (p12z-oz1)*(p12z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p12x-ox2)*(p12x-ox2) + (p12y-oy2)*(p12y-oy2) + (p12z-oz2)*(p12z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p12x-ox3)*(p12x-ox3) + (p12y-oy3)*(p12y-oy3) + (p12z-oz3)*(p12z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-cx)*(p12x-cx) + (p12y-cy)*(p12y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p12x-cx2)*(p12x-cx2) + (p12y-cy2)*(p12y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p12x-ox1)*(p12x-ox1) + (p12y-oy1)*(p12y-oy1) + (p12z-oz1)*(p12z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-ox2)*(p12x-ox2) + (p12y-oy2)*(p12y-oy2) + (p12z-oz2)*(p12z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p12x-ox3)*(p12x-ox3) + (p12y-oy3)*(p12y-oy3) + (p12z-oz3)*(p12z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p13x-cx)*(p13x-cx) + (p13y-cy)*(p13y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p13x-cx2)*(p13x-cx2) + (p13y-cy2)*(p13y-cy2)) >= (lr+ora)*(lr+ora));
@@ -402,11 +424,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p13x-ox2)*(p13x-ox2) + (p13y-oy2)*(p13y-oy2) + (p13z-oz2)*(p13z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p13x-ox3)*(p13x-ox3) + (p13y-oy3)*(p13y-oy3) + (p13z-oz3)*(p13z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p14x-cx2)*(p14x-cx2) + (p14y-cy2)*(p14y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p14x-cx)*(p14x-cx) + (p14y-cy)*(p14y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p14x-ox1)*(p14x-ox1) + (p14y-oy1)*(p14y-oy1) + (p14z-oz1)*(p14z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p14x-ox2)*(p14x-ox2) + (p14y-oy2)*(p14y-oy2) + (p14z-oz2)*(p14z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p14x-ox3)*(p14x-ox3) + (p14y-oy3)*(p14y-oy3) + (p14z-oz3)*(p14z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-cx2)*(p14x-cx2) + (p14y-cy2)*(p14y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p14x-cx)*(p14x-cx) + (p14y-cy)*(p14y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p14x-ox1)*(p14x-ox1) + (p14y-oy1)*(p14y-oy1) + (p14z-oz1)*(p14z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-ox2)*(p14x-ox2) + (p14y-oy2)*(p14y-oy2) + (p14z-oz2)*(p14z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p14x-ox3)*(p14x-ox3) + (p14y-oy3)*(p14y-oy3) + (p14z-oz3)*(p14z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p21x-cx)*(p21x-cx) + (p21y-cy)*(p21y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p21x-cx2)*(p21x-cx2) + (p21y-cy2)*(p21y-cy2)) >= (lr+ora)*(lr+ora));
@@ -414,11 +436,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p21x-ox2)*(p21x-ox2) + (p21y-oy2)*(p21y-oy2) + (p21z-oz2)*(p21z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p21x-ox3)*(p21x-ox3) + (p21y-oy3)*(p21y-oy3) + (p21z-oz3)*(p21z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p22x-cx2)*(p22x-cx2) + (p22y-cy2)*(p22y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p22x-cx)*(p22x-cx) + (p22y-cy)*(p22y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p22x-ox1)*(p22x-ox1) + (p22y-oy1)*(p22y-oy1) + (p22z-oz1)*(p22z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p22x-ox2)*(p22x-ox2) + (p22y-oy2)*(p22y-oy2) + (p22z-oz2)*(p22z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p22x-ox3)*(p22x-ox3) + (p22y-oy3)*(p22y-oy3) + (p22z-oz3)*(p22z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-cx2)*(p22x-cx2) + (p22y-cy2)*(p22y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p22x-cx)*(p22x-cx) + (p22y-cy)*(p22y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p22x-ox1)*(p22x-ox1) + (p22y-oy1)*(p22y-oy1) + (p22z-oz1)*(p22z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-ox2)*(p22x-ox2) + (p22y-oy2)*(p22y-oy2) + (p22z-oz2)*(p22z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p22x-ox3)*(p22x-ox3) + (p22y-oy3)*(p22y-oy3) + (p22z-oz3)*(p22z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p23x-cx)*(p23x-cx) + (p23y-cy)*(p23y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p23x-cx2)*(p23x-cx2) + (p23y-cy2)*(p23y-cy2)) >= (lr+ora)*(lr+ora));
@@ -426,11 +448,11 @@ int main(int argc, char** argv) {
   ocp.subjectTo(((p23x-ox2)*(p23x-ox2) + (p23y-oy2)*(p23y-oy2) + (p23z-oz2)*(p23z-oz2)) >= (lr+tr)*(lr+tr));
   ocp.subjectTo(((p23x-ox3)*(p23x-ox3) + (p23y-oy3)*(p23y-oy3) + (p23z-oz3)*(p23z-oz3)) >= (lr+tr)*(lr+tr));
 
-  // ocp.subjectTo(((p24x-cx)*(p24x-cx) + (p24y-cy)*(p24y-cy)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p24x-cx2)*(p24x-cx2) + (p24y-cy2)*(p24y-cy2)) >= (lr+ora)*(lr+ora));
-  // ocp.subjectTo(((p24x-ox1)*(p24x-ox1) + (p24y-oy1)*(p24y-oy1) + (p24z-oz1)*(p24z-oz1)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p24x-ox2)*(p24x-ox2) + (p24y-oy2)*(p24y-oy2) + (p24z-oz2)*(p24z-oz2)) >= (lr+tr)*(lr+tr));
-  // ocp.subjectTo(((p24x-ox3)*(p24x-ox3) + (p24y-oy3)*(p24y-oy3) + (p24z-oz3)*(p24z-oz3)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-cx)*(p24x-cx) + (p24y-cy)*(p24y-cy)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p24x-cx2)*(p24x-cx2) + (p24y-cy2)*(p24y-cy2)) >= (lr+ora)*(lr+ora));
+  ocp.subjectTo(((p24x-ox1)*(p24x-ox1) + (p24y-oy1)*(p24y-oy1) + (p24z-oz1)*(p24z-oz1)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-ox2)*(p24x-ox2) + (p24y-oy2)*(p24y-oy2) + (p24z-oz2)*(p24z-oz2)) >= (lr+tr)*(lr+tr));
+  ocp.subjectTo(((p24x-ox3)*(p24x-ox3) + (p24y-oy3)*(p24y-oy3) + (p24z-oz3)*(p24z-oz3)) >= (lr+tr)*(lr+tr));
 
   ocp.subjectTo(((p25x-cx)*(p25x-cx) + (p25y-cy)*(p25y-cy)) >= (lr+ora)*(lr+ora));
   ocp.subjectTo(((p25x-cx2)*(p25x-cx2) + (p25y-cy2)*(p25y-cy2)) >= (lr+ora)*(lr+ora));
@@ -447,10 +469,11 @@ int main(int argc, char** argv) {
   algorithm->set(HESSIAN_APPROXIMATION, GAUSS_NEWTON);
   algorithm->set(KKT_TOLERANCE, 1e-6);
 
+  /* Initialize optimization using results from relaxed optimization */
   algorithm->initializeDifferentialStates(xi);
   algorithm->initializeControls(ui);
 
-
+  /* If optimization is not succesful, return */
   if(algorithm->solve() != SUCCESSFUL_RETURN) {
     ROS_WARN("Failed to solve. Exiting...");
     return 0;
@@ -458,9 +481,9 @@ int main(int argc, char** argv) {
 
   ROS_INFO("Final OCP took %f seconds to solve", (ros::Time::now()-t1).toSec());
 
+  /* Get resulting trajectory */
   VariablesGrid states(16, timeGrid);
   VariablesGrid controls(6, timeGrid);
-  DVector params(4); 
   algorithm->getDifferentialStates(states);
   algorithm->getControls(controls);
 
@@ -930,12 +953,6 @@ int main(int argc, char** argv) {
 
     br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "world", "baselink"));
 
-    // ROS_INFO("Thrust = %f", T);
-
-    // double exp_x = x + (sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(yaw) + cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*cos(yaw)*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(yaw)*(l2*cos(j1 + j2) + l1*cos(j1));
-    // double exp_y = y + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw)*(l2*cos(j1 + j2) + l1*cos(j1)) - (cos(yaw)*sin(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81)))) - cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*sin(yaw))*(l2*sin(j1 + j2) + l1*sin(j1));
-    // double exp_z = z + cos(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*cos(asin((-xdd*sin(yaw) + ydd*cos(yaw))/sqrt(xdd*xdd + ydd*ydd + (zdd+9.81)*(zdd+9.81))))*(l2*sin(j1 + j2) + l1*sin(j1)) - sin(atan((xdd*cos(yaw) + ydd*sin(yaw))/(zdd + 9.81)))*(l2*cos(j1 + j2) + l1*cos(j1));
-
     goalPub.publish(goal_marker);
     // goalPub.publish(cage);
     quadPub.publish(quad_body_marker1);
@@ -946,8 +963,8 @@ int main(int argc, char** argv) {
     quadPub.publish(link2marker2);
     quadPub.publish(link2marker3);
     quadPub.publish(link2marker4);
-    obsPub.publish(obs_marker);
-    obsPub.publish(obs_marker2);
+    // obsPub.publish(obs_marker);
+    // obsPub.publish(obs_marker2);
     obsPub.publish(marker1);
     obsPub.publish(marker2);
     obsPub.publish(marker3);
@@ -956,19 +973,14 @@ int main(int argc, char** argv) {
     quadPub.publish(link1marker3);
     quadPub.publish(link1marker4);
     quadPub.publish(link2marker5);
-    obsPub.publish(eemarker);
+    quadPub.publish(eemarker);
 
     sensor_msgs::JointState joint_state;
     joint_state.name.push_back("airbasetolink1");
     joint_state.name.push_back("link1tolink2");
-
-    // joint_state.position.push_back(-j1 + 1.57);
-    // joint_state.position.push_back(-j2);
     joint_state.position.push_back(-states(tt, 14) + 1.57);
     joint_state.position.push_back(-states(tt,15));
-
     joint_state.header.stamp = ros::Time::now();
-
     jointPub.publish(joint_state);
 
     geometry_msgs::PoseStamped pose_msg;
@@ -998,22 +1010,7 @@ int main(int argc, char** argv) {
     } catch(...) {
       ROS_INFO("Transform not found");
     }
-    // nav_msgs::Odometry odommsg;
-    // odommsg.header.stamp = ros::Time::now();
-    // odommsg.header.frame_id = "world";
-    // odommsg.pose.pose.position.x = states(tt,0);
-    // odommsg.pose.pose.position.y = states(tt,1);
-    // odommsg.pose.pose.position.z = states(tt,2);
-
-    // odommsg.pose.pose.orientation = tf::createQuaternionMsgFromYaw(states(tt,12));
-
-    // odommsg.twist.twist.linear.x = states(tt,3);
-    // odommsg.twist.twist.linear.y = states(tt,4);
-    // odommsg.twist.twist.linear.z = states(tt,5);
-
-    // odomPub.publish(odommsg);
-
-    ros::Duration(2*te/numSteps).sleep();
+    ros::Duration(te/numSteps).sleep();
   }
   return 0;
 }
