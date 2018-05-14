@@ -1,9 +1,0 @@
-<launch>
-  <param name="robot_description" textfile="$(find opam)/urdf/airbot5.urdf"/>
-  <param name="states_file" type="string" value="$(find opam)/data/states_stamped.txt"/>
-  <param name="controls_file" type="string" value="$(find opam)/data/controls_stamped.txt"/>
-  <node type="quad_arm_sim" pkg="opam" name="quad_sim" output="screen"/>
-
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find urdf_tutorial)/urdf.rviz" required="true" />
-</launch>
